@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+        <title>Link Shortener</title>
+        <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+    </head>
+
+    <body>
+        <main class="container">
+            <button type="button" class="open">New Short Link</button>
+            <article>
+                <table role="grid">
+                    <thead>
+                        <th>Short Link</th>
+                        <th>Link</th>
+                        <th>Visits</th>
+                        <th>Created at</th>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <footer></footer>
+            </article>
+        </main>
+
+        <dialog>
+            <article style="width: 50%">
+                <header>
+                    <a href="#close" class="close"></a>
+                    <div>New Short Link</div>
+                </header>
+                <form>
+                    <input type="url" title="Link" placeholder="Enter a link (e.g. https://...)" required />
+                    <button type="submit">Shorten Link</button>
+                </form>
+                <footer hidden style="text-align: left">
+                    <a href="#" target="_blank"></a>
+                    <ins hidden>Copied</ins>
+                </footer>
+            </article>
+        </dialog>
+
+        <script>
+            // Load links
+            async function fetchLinks(currentPage) {
+                currentPage = currentPage || 1;
+                const response = await fetch(`/private/api/links?page=${currentPage}`, {
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                });
+                const links = await response.json();
+
+                const totalPages = parseInt(links.total_pages);
+                createLinksTable(links.results);
+                createPagination(totalPages, currentPage);
+            }
+
+            function createLinksTable(links) {
+                document.querySelector("table tbody").replaceChildren(
+                    ...links.map(function (link) {
+                        const short = document.createElement("td");
+                        short.innerText = link.short_url;
+                        const anchor = document.createElement("a");
+                        anchor.href = link.short_url;
+                        anchor.target = "_blank";
+                        anchor.innerText = "Open";
+                        const long = document.createElement("td");
+                        long.appendChild(anchor);
+                        const visits = document.createElement("td");
+                        visits.innerText = link.visits.toString();
+                        const created = document.createElement("td");
+                        created.innerText = new Date(Date.parse(link.created_at)).toLocaleString();
+                        const row = document.createElement("tr");
+                        row.append(short, long, visits, created);
+                        return row;
+                    })
+                );
+            }
+
+            function createPagination(totalPages, currentPage) {
+                if (totalPages === 1) {
+                    document.querySelector("main footer").setAttribute("hidden", "");
+                    return;
+                }
+                document.querySelector("main footer").replaceChildren(
+                    ...(function () {
+                        const pageLinks = [];
+                        for (let i = 0; i < totalPages; i++) {
+                            pageLinks[i] = document.createElement("a");
+                            pageLinks[i].innerText = `[ ${i + 1} ]`;
+                            pageLinks[i].href = `javascript:fetchLinks(${i + 1})`;
+                            if (currentPage === i + 1) {
+                                pageLinks[i].className = "contrast";
+                            }
+                        }
+                        return pageLinks;
+                    })(totalPages)
+                );
+            }
+
+            // Dialog
+            document.querySelector(".container button.open").addEventListener("click", function (event) {
+                event.preventDefault();
+                document.querySelector("dialog").setAttribute("open", "");
+            });
+
+            document.querySelector("dialog .close").addEventListener("click", function (event) {
+                event.preventDefault();
+                document.querySelector("dialog").removeAttribute("open");
+            });
+
+            // Shorten link
+            document.querySelector("dialog form").addEventListener("submit", async function (event) {
+                event.preventDefault();
+                document.querySelector("dialog footer").setAttribute("hidden", "");
+                document.querySelector("dialog footer ins").setAttribute("hidden", "");
+                document.querySelector("dialog form button").ariaBusy = "true";
+                const response = await fetch("/private/api/links", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({ url: document.querySelector("dialog form input[type=url]").value }),
+                });
+                document.querySelector("dialog form button").ariaBusy = "false";
+                const data = await response.json();
+                if (response.ok) {
+                    document.querySelector("dialog form input[type=url]").value = "";
+                    document.querySelector("dialog footer").removeAttribute("hidden");
+                    document.querySelector("dialog footer a").innerText = data["short_url"];
+                    document.querySelector("dialog footer a").setAttribute("href", data["short_url"]);
+                } else {
+                }
+            });
+
+            document.querySelector("dialog footer a").addEventListener("click", async function (event) {
+                if (navigator.clipboard) {
+                    event.preventDefault();
+                    await navigator.clipboard.writeText(this.innerText);
+                    document.querySelector("dialog footer ins").removeAttribute("hidden");
+                }
+            });
+
+            // ready
+            document.addEventListener("DOMContentLoaded", function () {
+                fetchLinks(1);
+            });
+        </script>
+    </body>
+</html>

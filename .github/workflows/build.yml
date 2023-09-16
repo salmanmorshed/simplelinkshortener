@@ -1,0 +1,30 @@
+name: Go Build and Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.21
+
+      - name: Build
+        run: go build -o simplelinkshortener main.go
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            simplelinkshortener
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
