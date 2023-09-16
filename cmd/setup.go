@@ -184,7 +184,7 @@ func setupConfig(c *cli.Context) error {
 	}
 
 	conf.Shortener.StrictValidator = true
-	conf.Shortener.HomeRedirect = "/private"
+	conf.Shortener.HomeRedirect = "/private/web"
 
 	conf.Codec.Alphabet = utils.CreateRandomAlphabet()
 	conf.Codec.BlockSize = 24
