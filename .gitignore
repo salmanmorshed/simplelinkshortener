@@ -1,3 +1,5 @@
 bin
+tmp
 *.sqlite3
 *.yaml
+.air.toml
