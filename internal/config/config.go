@@ -40,6 +40,8 @@ type AppConfig struct {
 			PrivateKey  string `yaml:"private_key,omitempty"`
 		} `yaml:"tls_files,omitempty"`
 	} `yaml:"server"`
+
+	Debug bool `yaml:"debug"`
 }
 
 func LoadConfigFromFile(configPath string) (*AppConfig, error) {
