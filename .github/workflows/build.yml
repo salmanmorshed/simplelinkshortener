@@ -20,11 +20,21 @@ jobs:
       - name: Build
         run: go build -o simplelinkshortener main.go
 
-      - name: Create Release
+      - name: Set executable
+        run: chmod +x simplelinkshortener
+
+      - name: Create new release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             simplelinkshortener
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete old releases
+        uses: dev-drprasad/delete-older-releases@v0.2
+        with:
+          keep_latest: 1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
