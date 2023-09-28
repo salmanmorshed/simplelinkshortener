@@ -4,11 +4,10 @@ import (
 	"errors"
 	"net/url"
 	"regexp"
-	"strings"
 	"unicode"
 )
 
-func CheckURLValidity(rawURL string, strict bool) bool {
+func CheckURLValidity(rawURL string) bool {
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return false
@@ -19,10 +18,6 @@ func CheckURLValidity(rawURL string, strict bool) bool {
 	}
 
 	if parsedURL.Host == "" {
-		return false
-	}
-
-	if strict && !strings.Contains(parsedURL.Host, ".") {
 		return false
 	}
 

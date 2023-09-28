@@ -64,7 +64,7 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 			return
 		}
 
-		if !utils.CheckURLValidity(data.URL, conf.Shortener.StrictValidator) {
+		if !utils.CheckURLValidity(data.URL) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "url is invalid"})
 			return
 		}
