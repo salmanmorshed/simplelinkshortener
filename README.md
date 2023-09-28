@@ -1,31 +1,30 @@
-# SimpleLinkShortener
+# simplelinkshortener
 
-SimpleLinkShortener is a standalone application for creating self-hosted link shortening services.
+simplelinkshortener is a standalone application for creating private self-hosted link shortening services.
 
 ## Usage
 
-1. Download the latest binary:
+### 1. Install the latest version:
 ```bash
-wget https://github.com/salmanmorshed/SimpleLinkShortener/releases/latest/download/simplelinkshortener
+go install "github.com/salmanmorshed/simplelinkshortener@latest"
 ```
 
-2. Run the setup command to initialize a configuration file:
-
+### 2. Run the setup command:
 ```bash
-./simplelinkshortener setup
+~/go/bin/simplelinkshortener setup
 ```
-This command will guide you through the initial setup, allowing you to customize settings such as database and web server configuration. It'll also generate a randomized alphabet required to create the short links. You can specify the location of the config file using the global `--config` option.
+This command will guide you through the initial setup and generate a config file containing database and web server configuration. It'll also generate a randomized alphabet required to create the short links. You can specify the location of the config file using the global `--config` option.
 
-3. Start the server:
+### 3. Start the webserver:
 ```bash
-./simplelinkshortener start
+~/go/bin/simplelinkshortener start
 ```
 The server will begin listening to web traffic. Users with valid credentials can access the service to create and access short links.
 
 ## User Management
 Access to the API and the web UI is restricted by HTTP Basic Authentication. You must create user accounts before using the shortener. To add a new user, use the `useradd` command. Check the help menu for more details: 
 ```bash
-./simplelinkshortener --help
+~/go/bin/simplelinkshortener --help
 ```
 
 
