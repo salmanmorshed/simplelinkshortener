@@ -7,8 +7,8 @@ import (
 )
 
 func GetBaseUrl(conf *config.AppConfig) string {
-	if conf.Shortener.URLPrefix != "" {
-		return conf.Shortener.URLPrefix
+	if conf.URLPrefix != "" {
+		return conf.URLPrefix
 	}
 	scheme := "http"
 	portSuffix := ""

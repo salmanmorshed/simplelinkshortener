@@ -177,14 +177,13 @@ func setupConfig(c *cli.Context) error {
 		conf.Server.Host = "127.0.0.1"
 		conf.Server.Port = "8000"
 		if conf.Server.UseTls {
-			conf.Shortener.URLPrefix = fmt.Sprintf("https://%s", domain)
+			conf.URLPrefix = fmt.Sprintf("https://%s", domain)
 		} else {
-			conf.Shortener.URLPrefix = fmt.Sprintf("http://%s", domain)
+			conf.URLPrefix = fmt.Sprintf("http://%s", domain)
 		}
 	}
 
-	conf.Shortener.StrictValidator = true
-	conf.Shortener.HomeRedirect = "/private/web"
+	conf.HomeRedirect = "/private/web"
 
 	conf.Codec.Alphabet = utils.CreateRandomAlphabet()
 	conf.Codec.BlockSize = 24

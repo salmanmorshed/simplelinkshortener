@@ -9,11 +9,9 @@ import (
 )
 
 type AppConfig struct {
-	Shortener struct {
-		URLPrefix       string `yaml:"url_prefix,omitempty"`
-		HomeRedirect    string `yaml:"home_redirect,omitempty"`
-		StrictValidator bool   `yaml:"strict_validator,omitempty"`
-	} `yaml:"shortener"`
+	Debug        bool   `yaml:"debug"`
+	URLPrefix    string `yaml:"url_prefix,omitempty"`
+	HomeRedirect string `yaml:"home_redirect,omitempty"`
 
 	Codec struct {
 		Alphabet  string `yaml:"alphabet"`
@@ -40,8 +38,6 @@ type AppConfig struct {
 			PrivateKey  string `yaml:"private_key,omitempty"`
 		} `yaml:"tls_files,omitempty"`
 	} `yaml:"server"`
-
-	Debug bool `yaml:"debug"`
 }
 
 func LoadConfigFromFile(configPath string) (*AppConfig, error) {

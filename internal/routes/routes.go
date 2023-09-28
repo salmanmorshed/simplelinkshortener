@@ -18,9 +18,9 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 
 	router := gin.Default()
 
-	if conf.Shortener.HomeRedirect != "" {
+	if conf.HomeRedirect != "" {
 		router.GET("/", func(c *gin.Context) {
-			c.Redirect(http.StatusFound, conf.Shortener.HomeRedirect)
+			c.Redirect(http.StatusFound, conf.HomeRedirect)
 		})
 	}
 
