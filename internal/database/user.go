@@ -23,7 +23,11 @@ func (user *User) UpdateUsername(db *gorm.DB, newUsername string) error {
 }
 
 func (user *User) UpdatePassword(db *gorm.DB, newPassword string) error {
-	if q := db.Model(&user).Update("password", newPassword); q.Error != nil {
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("failed to hash password")
+	}
+	if q := db.Model(&user).Update("password", string(hashedBytes)); q.Error != nil {
 		return errors.New("failed to update password")
 	}
 	return nil
