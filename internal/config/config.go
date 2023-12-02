@@ -37,6 +37,7 @@ type AppConfig struct {
 			Certificate string `yaml:"certificate,omitempty"`
 			PrivateKey  string `yaml:"private_key,omitempty"`
 		} `yaml:"tls_files,omitempty"`
+		UseCORS bool `yaml:"use_cors,omitempty"`
 	} `yaml:"server"`
 }
 

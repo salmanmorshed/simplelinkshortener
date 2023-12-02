@@ -18,6 +18,10 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 
 	router := gin.Default()
 
+	if conf.Server.UseCORS {
+		router.Use(CORSMiddleware())
+	}
+
 	if conf.HomeRedirect != "" {
 		router.GET("/", func(c *gin.Context) {
 			c.Redirect(http.StatusFound, conf.HomeRedirect)
