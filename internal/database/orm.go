@@ -18,7 +18,7 @@ func CreateGORM(conf *config.AppConfig) (*gorm.DB, error) {
 
 	var gormConfig gorm.Config
 	if conf.Debug {
-		gormConfig = gorm.Config{Logger: logger.Default.LogMode(logger.Info)}
+		gormConfig = gorm.Config{Logger: logger.Default.LogMode(logger.Warn)}
 	} else {
 		gormConfig = gorm.Config{Logger: logger.Default.LogMode(logger.Silent)}
 	}

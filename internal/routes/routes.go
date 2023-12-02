@@ -14,7 +14,9 @@ import (
 )
 
 func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConfig) *gin.Engine {
-	gin.SetMode(gin.ReleaseMode)
+	if !conf.Debug {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
 	router := gin.Default()
 
