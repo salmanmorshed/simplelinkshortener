@@ -12,12 +12,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.21
 
-      - name: Build
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+            npm install
+            npm run build
+
+      - name: Build backend
         run: go build -o simplelinkshortener main.go
 
       - name: Set executable
@@ -35,6 +46,6 @@ jobs:
       - name: Delete old releases
         uses: dev-drprasad/delete-older-releases@v0.2.1
         with:
-          keep_latest: 1
+          keep_latest: 2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
