@@ -1,19 +1,20 @@
 package routes
 
 import (
-	"embed"
 	"io"
 	"net/http"
+
+	"embed"
 
 	"github.com/gin-gonic/gin"
 )
 
-//go:embed templates/*
-var EmbeddedFileSystem embed.FS
+//go:embed web/*
+var embeddedFileSystem embed.FS
 
 func ServeEmbeddedFile(file string, contentType string) func(*gin.Context) {
 	return func(c *gin.Context) {
-		file, err := EmbeddedFileSystem.Open(file)
+		file, err := embeddedFileSystem.Open(file)
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Error opening file")
 			return

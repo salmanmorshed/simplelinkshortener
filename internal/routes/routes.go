@@ -57,7 +57,7 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 
 	private := router.Group("/private", BasicAuthMiddleware(db))
 
-	private.GET("/web", ServeEmbeddedFile("templates/web.html", "text/html"))
+	private.GET("/web", ServeEmbeddedFile("web/index.html", "text/html"))
 
 	private.POST("/api/links", func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)

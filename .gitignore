@@ -3,3 +3,5 @@ tmp
 *.sqlite3
 *.yaml
 .air.toml
+frontend/node_modules
+internal/routes/web/*
