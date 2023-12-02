@@ -12,7 +12,7 @@ func GetBaseUrl(conf *config.AppConfig) string {
 	}
 	scheme := "http"
 	portSuffix := ""
-	if conf.Server.UseTls {
+	if conf.Server.UseTLS {
 		scheme = "https"
 		if conf.Server.Port != "443" {
 			portSuffix = fmt.Sprintf(":%s", conf.Server.Port)

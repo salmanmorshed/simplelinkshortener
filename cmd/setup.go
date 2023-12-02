@@ -143,9 +143,9 @@ func setupConfig(c *cli.Context) error {
 	}
 
 	if useRP == "no" {
-		conf.Server.UseTls = useTLS == "yes"
+		conf.Server.UseTLS = useTLS == "yes"
 		conf.Server.Host = domain
-		if conf.Server.UseTls {
+		if conf.Server.UseTLS {
 			conf.Server.Port = "443"
 
 			prompt10 := promptui.Prompt{
@@ -153,7 +153,7 @@ func setupConfig(c *cli.Context) error {
 				Default:   fmt.Sprintf("/etc/letsencrypt/live/%s/fullchain.pem", domain),
 				AllowEdit: true,
 			}
-			conf.Server.TlsFiles.Certificate, err = prompt10.Run()
+			conf.Server.TLSFiles.Certificate, err = prompt10.Run()
 			if err != nil {
 				fmt.Println("aborted")
 				return nil
@@ -164,7 +164,7 @@ func setupConfig(c *cli.Context) error {
 				Default:   fmt.Sprintf("/etc/letsencrypt/live/%s/privkey.pem", domain),
 				AllowEdit: true,
 			}
-			conf.Server.TlsFiles.PrivateKey, err = prompt11.Run()
+			conf.Server.TLSFiles.PrivateKey, err = prompt11.Run()
 			if err != nil {
 				fmt.Println("aborted")
 				return nil
@@ -173,10 +173,10 @@ func setupConfig(c *cli.Context) error {
 			conf.Server.Port = "80"
 		}
 	} else {
-		conf.Server.UseTls = false
+		conf.Server.UseTLS = false
 		conf.Server.Host = "127.0.0.1"
 		conf.Server.Port = "8000"
-		if conf.Server.UseTls {
+		if conf.Server.UseTLS {
 			conf.URLPrefix = fmt.Sprintf("https://%s", domain)
 		} else {
 			conf.URLPrefix = fmt.Sprintf("http://%s", domain)

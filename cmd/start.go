@@ -11,6 +11,8 @@ import (
 )
 
 func startServer(c *cli.Context) error {
+	var err error
+
 	conf, err := config.LoadConfigFromFile(c.Value("config").(string))
 	if err != nil {
 		return fmt.Errorf("failed to load config: %v", err)
@@ -21,25 +23,24 @@ func startServer(c *cli.Context) error {
 		return fmt.Errorf("failed to connect to db: %v", err)
 	}
 
-	codec, err3 := intstrcodec.CreateCodec(conf.Codec.Alphabet, conf.Codec.BlockSize, conf.Codec.MinLength)
-	if err3 != nil {
-		return fmt.Errorf("failed to initialize codec: %v", err3)
+	codec, err := intstrcodec.CreateCodec(conf.Codec.Alphabet, conf.Codec.BlockSize, conf.Codec.MinLength)
+	if err != nil {
+		return fmt.Errorf("failed to initialize codec: %v", err)
 	}
 
 	router := routes.GetRouter(conf, db, codec)
-
-	var err4 error
-	if conf.Server.UseTls {
-		err4 = router.RunTLS(
+	if conf.Server.UseTLS {
+		err = router.RunTLS(
 			fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port),
-			conf.Server.TlsFiles.Certificate,
-			conf.Server.TlsFiles.PrivateKey,
+			conf.Server.TLSFiles.Certificate,
+			conf.Server.TLSFiles.PrivateKey,
 		)
 	} else {
-		err4 = router.Run(fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port))
+		err = router.Run(fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port))
 	}
-	if err4 != nil {
-		return fmt.Errorf("failed to run server: %v", err4)
+	if err != nil {
+		return fmt.Errorf("failed to run server: %v", err)
 	}
+
 	return nil
 }
