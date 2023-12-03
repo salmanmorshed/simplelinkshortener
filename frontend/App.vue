@@ -1,42 +1,38 @@
 <script setup>
-import { ref, watch } from "vue";
-
-let totalPages = ref(0);
-let activePage = ref(1);
-let links = ref([]);
+import { ref, computed, watch } from "vue";
+import Create from "./Create.vue";
 
 let showCreateDialog = ref(false);
-let createDialogURL = ref("");
-let newShortLinkURL = ref("");
+
+let limit = 10;
+let offset = ref(0);
+let total = ref(0);
+
+const totalPages = computed(() => Math.ceil(total.value / limit));
+const activePage = computed({
+    get() {
+        return Math.floor(offset.value / limit) + 1;
+    },
+    set(value) {
+        offset.value = (value - 1) * limit;
+    },
+});
+
+let links = ref([]);
 
 async function fetchLinks() {
-    const response = await fetch(`/private/api/links?page=${activePage.value}`, { credentials: "include" });
+    const url = `/private/api/links?limit=${limit}&offset=${offset.value}`;
+    const response = await fetch(url, { credentials: "include" });
     const data = await response.json();
-    totalPages.value = data["total_pages"];
-    links.value = data["results"];
+    links.value = data.results;
+    total.value = data.total;
 }
 
-async function createLink() {
-    const response = await fetch("/private/api/links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ url: createDialogURL.value }),
-    });
-    const data = await response.json();
-    newShortLinkURL.value = data.short_url;
-    createDialogURL.value = "";
+function formatDateTime(input) {
+    return new Date(Date.parse(input)).toLocaleString();
 }
 
-const formatDateTime = input => new Date(Date.parse(input)).toLocaleString();
-
-watch(activePage, async () => await fetchLinks(), { immediate: true });
-watch(showCreateDialog, val => {
-    if (!val) {
-        createDialogURL.value = "";
-        newShortLinkURL.value = "";
-    }
-});
+watch(offset, fetchLinks, { immediate: true });
 </script>
 
 <template>
@@ -44,14 +40,16 @@ watch(showCreateDialog, val => {
         <article>
             <table role="grid">
                 <thead>
-                    <th>Short Link</th>
-                    <th>Link</th>
-                    <th>Visits</th>
-                    <th>Created at</th>
+                    <tr>
+                        <th>Slug</th>
+                        <th>Link</th>
+                        <th>Visits</th>
+                        <th>Created at</th>
+                    </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="link in links" :key="link.short_url">
-                        <td>{{ link.short_url }}</td>
+                    <tr v-for="link in links" :key="link.slug">
+                        <td>{{ link.slug }}</td>
                         <td>{{ link.url }}</td>
                         <td>{{ link.visits }}</td>
                         <td>{{ formatDateTime(link.created_at) }}</td>
@@ -59,43 +57,24 @@ watch(showCreateDialog, val => {
                 </tbody>
             </table>
             <footer>
-                <a v-for="i in totalPages" :class="{ contrast: i === activePage }" @click.prevent="activePage = i">
+                <a
+                    href="#"
+                    v-for="i in totalPages"
+                    :class="{ contrast: i === activePage }"
+                    @click.prevent="activePage = i"
+                >
                     {{ i }}
                 </a>
             </footer>
         </article>
         <button type="button" class="open" @click="showCreateDialog = true">New Short Link</button>
     </main>
-
-    <dialog :open="showCreateDialog">
-        <article style="width: 50%">
-            <header>
-                <a class="close" @click.prevent="showCreateDialog = false"></a>
-                <div>New Short Link</div>
-            </header>
-            <form @submit.prevent="createLink()">
-                <input
-                    type="url"
-                    v-model="createDialogURL"
-                    placeholder="Enter a link (e.g. https://example.com/...)"
-                    required
-                />
-                <button type="submit">Shorten Link</button>
-            </form>
-            <footer :hidden="!newShortLinkURL">
-                <a :href="newShortLinkURL" target="_blank">{{ newShortLinkURL }}</a>
-                <ins hidden>Copied</ins>
-            </footer>
-        </article>
-    </dialog>
+    <Create v-model="showCreateDialog" />
 </template>
 
 <style scoped>
-dialog > article > footer {
-    text-align: left;
-}
 main > article > footer > a {
     text-decoration: none;
-    padding: 0.25rem 0.75rem;
+    padding: 0.3rem 0.7rem;
 }
 </style>
