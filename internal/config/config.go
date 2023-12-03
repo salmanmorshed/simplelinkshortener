@@ -8,6 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var Version string
+
 type AppConfig struct {
 	Debug        bool   `yaml:"debug"`
 	URLPrefix    string `yaml:"url_prefix,omitempty"`

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
 	"gorm.io/gorm"
 )
@@ -19,7 +20,7 @@ func CORSMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Header("X-Version", "0.1.0-beta")
+		c.Header("X-Version", config.Version)
 
 		c.Next()
 	}
