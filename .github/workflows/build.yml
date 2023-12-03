@@ -29,7 +29,7 @@ jobs:
             npm run build
 
       - name: Build backend
-        run: go build -ldflags "-X github.com/salmanmorshed/simplelinkshortener/internal/config.Version=$(git describe --abbrev=0)" -o simplelinkshortener main.go
+        run: go build -ldflags "-X github.com/salmanmorshed/simplelinkshortener/internal/config.Version=${{ github.ref_name }}" -o simplelinkshortener main.go
 
       - name: Set executable
         run: chmod +x simplelinkshortener
