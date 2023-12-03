@@ -62,7 +62,9 @@ Content-Type: application/json
 - **URL**: `/private/api/links`
 - **Method**: GET
 - **Authentication**: Basic Authentication
-- **Query Parameter**: `page` (integer, optional).
+- **Query Parameters**: 
+  - `limit` (integer) default = 10
+  - `offset` (integer) default = 0
 - **Response**: List of user's short links with pagination details.
 
 **Example Request:**
@@ -76,22 +78,22 @@ Content-Type: application/json
 **Response:**
 ```json
 {
-  "current_page": 1,
   "results": [
     {
-      "short_url": "http://your-shortener-domain.xyz/abcde",
+      "slug": "abcde",
       "url": "https://example.com",
       "visits": 5,
       "created_at": "2023-04-20T06:09:00Z"
     },
-    ...
   ],
-  "total_pages": 5
+  "total": 1,
+  "limit": 10,
+  "offset": 0
 }
 ```
 
-## Web UI
-There's a work-in-progress web UI on `/private/web`. You can use it to create or view your links.
+## Web frontend
+A work-in-progress frontend app is served on `/private/web`. You can use it to create or view your links.
 
 
 ## License
