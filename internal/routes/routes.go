@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"math"
 	"net/http"
 	"strconv"
 
@@ -24,11 +23,13 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 		router.Use(CORSMiddleware())
 	}
 
-	if conf.HomeRedirect != "" {
-		router.GET("/", func(c *gin.Context) {
-			c.Redirect(http.StatusFound, conf.HomeRedirect)
-		})
-	}
+	router.GET("/", func(c *gin.Context) {
+		if conf.HomeRedirect == "" {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		c.Redirect(http.StatusFound, conf.HomeRedirect)
+	})
 
 	router.GET("/:id", func(c *gin.Context) {
 		encodedID := c.Param("id")
@@ -59,6 +60,84 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 
 	private.GET("/web", ServeEmbeddedFile("web/index.html", "text/html"))
 
+	private.GET("/api/links", func(c *gin.Context) {
+		user := c.MustGet("user").(*database.User)
+
+		totalLinkCount := user.GetLinkCount(db)
+
+		limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit value"})
+			return
+		}
+		if limit < 1 || limit > 100 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "limit must be between 1 and 100"})
+			return
+		}
+
+		offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page value"})
+			return
+		}
+		if offset < 0 || offset > totalLinkCount {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "offset value out of bounds"})
+			return
+		}
+
+		links := make([]database.Link, limit)
+		if err := user.FetchLinks(db, &links, limit, offset); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			return
+		}
+
+		results := make([]gin.H, len(links))
+		for i, link := range links {
+			results[i] = gin.H{
+				"slug":       codec.IntToStr(int(link.ID)),
+				"url":        link.URL,
+				"visits":     link.Visits,
+				"created_at": link.CreatedAt,
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"results": results,
+			"total":   totalLinkCount,
+			"limit":   limit,
+			"offset":  offset,
+		})
+	})
+
+	private.GET("/api/links/:id", func(c *gin.Context) {
+		encodedID := c.Param("id")
+		if encodedID == "" || encodedID == "favicon.ico" {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		decodedID := codec.StrToInt(encodedID)
+
+		link, err := database.GetLinkByID(db, uint(decodedID))
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		user := c.MustGet("user").(*database.User)
+		if user.ID != link.UserID {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"slug":       codec.IntToStr(int(link.ID)),
+			"url":        link.URL,
+			"visits":     link.Visits,
+			"created_at": link.CreatedAt,
+		})
+	})
+
 	private.POST("/api/links", func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)
 
@@ -82,49 +161,6 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 		}
 
 		c.JSON(http.StatusCreated, gin.H{"short_url": link.GetShortURL(conf, codec)})
-	})
-
-	private.GET("/api/links", func(c *gin.Context) {
-		limit := 10
-		user := c.MustGet("user").(*database.User)
-
-		totalLinkCount := user.GetLinkCount(db)
-		totalPageCount := int(math.Ceil(float64(totalLinkCount) / float64(limit)))
-
-		currentPage, err := strconv.Atoi(c.DefaultQuery("page", "1"))
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page value"})
-			return
-		}
-		if currentPage < 1 || currentPage > totalPageCount {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "page number out of range"})
-			return
-		}
-
-		offset := (currentPage - 1) * limit
-
-		links := make([]database.Link, limit)
-
-		if err := user.FetchLinks(db, &links, limit, offset); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
-			return
-		}
-
-		results := make([]gin.H, len(links))
-		for i, link := range links {
-			results[i] = gin.H{
-				"short_url":  link.GetShortURL(conf, codec),
-				"url":        link.URL,
-				"visits":     link.Visits,
-				"created_at": link.CreatedAt,
-			}
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"current_page": currentPage,
-			"results":      results,
-			"total_pages":  totalPageCount,
-		})
 	})
 
 	return router
