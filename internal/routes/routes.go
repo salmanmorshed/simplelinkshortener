@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -160,7 +161,9 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"short_url": link.GetShortURL(conf, codec)})
+		c.JSON(http.StatusCreated, gin.H{
+			"short_url": fmt.Sprintf("%s/%s", utils.GetBaseUrl(conf), codec.IntToStr(int(link.ID))),
+		})
 	})
 
 	return router

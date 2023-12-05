@@ -3,9 +3,6 @@ package database
 import (
 	"fmt"
 
-	"github.com/salmanmorshed/intstrcodec"
-	"github.com/salmanmorshed/simplelinkshortener/internal/config"
-	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -14,11 +11,6 @@ type Link struct {
 	URL    string
 	Visits uint
 	UserID uint
-}
-
-func (link *Link) GetShortURL(config *config.AppConfig, codec *intstrcodec.CodecConfig) string {
-	encodedID := codec.IntToStr(int(link.ID))
-	return fmt.Sprintf("%s/%s", utils.GetBaseUrl(config), encodedID)
 }
 
 func (link *Link) IncrementVisits(db *gorm.DB) error {
