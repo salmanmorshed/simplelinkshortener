@@ -44,8 +44,14 @@ func (user *User) GetLinkCount(db *gorm.DB) int {
 	return int(db.Model(*user).Association("Links").Count())
 }
 
-func (user *User) FetchLinks(db *gorm.DB, links *[]Link, limit int, offset int) error {
-	err := db.Model(*user).Limit(limit).Offset(offset).Association("Links").Find(links)
+func (user *User) FetchLinks(db *gorm.DB, links *[]Link, limit int, offset int, inverseOrdering bool) error {
+	var order string
+	if inverseOrdering {
+		order = "created_at desc"
+	} else {
+		order = "created_at"
+	}
+	err := db.Model(*user).Limit(limit).Offset(offset).Order(order).Association("Links").Find(links)
 	if err != nil {
 		return fmt.Errorf("failed to fetch links")
 	}

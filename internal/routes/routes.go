@@ -86,7 +86,7 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 		}
 
 		links := make([]database.Link, limit)
-		if err := user.FetchLinks(db, &links, limit, offset); err != nil {
+		if err := user.FetchLinks(db, &links, limit, offset, true); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
