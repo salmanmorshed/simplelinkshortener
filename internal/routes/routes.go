@@ -64,7 +64,7 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 	private.GET("/api/links", func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)
 
-		totalLinkCount := user.GetLinkCount(db)
+		totalLinkCount := database.GetLinkCountForUser(db, user)
 
 		limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
 		if err != nil {
@@ -86,8 +86,8 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 			return
 		}
 
-		links := make([]database.Link, limit)
-		if err := user.FetchLinks(db, &links, limit, offset, true); err != nil {
+		links, err := database.FetchLinksForUser(db, user, limit, offset, true)
+		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
@@ -163,6 +163,69 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 
 		c.JSON(http.StatusCreated, gin.H{
 			"short_url": fmt.Sprintf("%s/%s", utils.GetBaseUrl(conf), codec.IntToStr(int(link.ID))),
+		})
+	})
+
+	admin := private.Group("", AdminFilterMiddleware(db))
+
+	admin.GET("/api/users", func(c *gin.Context) {
+		users, err := database.GetAllUsers(db)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			return
+		}
+
+		results := make([]gin.H, len(users))
+		for i, user := range users {
+			results[i] = gin.H{
+				"username":   user.Username,
+				"password":   "<secret>",
+				"is_admin":   user.IsAdmin,
+				"created_at": user.CreatedAt,
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"results": results})
+	})
+
+	admin.Any("/api/users/:username", func(c *gin.Context) {
+		username := c.Param("username")
+
+		user, err := database.GetUserByUsername(db, username)
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		if c.Request.Method == "PATCH" {
+			var data struct {
+				Username string `json:"username"`
+				Password string `json:"password"`
+			}
+			if err := c.ShouldBindJSON(&data); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+
+			if data.Username != "" {
+				user.UpdateUsername(db, data.Username)
+			}
+
+			if data.Password != "" {
+				user.UpdatePassword(db, data.Password)
+			}
+		} else if c.Request.Method == "DELETE" {
+			user.DeleteUser(db)
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		} else if c.Request.Method != "GET" {
+			c.AbortWithStatus(http.StatusMethodNotAllowed)
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"username": user.Username,
+			"password": "<secret>",
 		})
 	})
 

@@ -97,9 +97,16 @@ func modifyUser(c *cli.Context) error {
 		return nil
 	}
 
+	var adminToggleOpLabel string
+	if !user.IsAdmin {
+		adminToggleOpLabel = "Grant admin status"
+	} else {
+		adminToggleOpLabel = "Revoke admin status"
+	}
+
 	prompt1 := promptui.Select{
 		Label: "Operation",
-		Items: []string{"Change password", "Change username"},
+		Items: []string{"Change password", "Change username", adminToggleOpLabel},
 	}
 	_, action, err := prompt1.Run()
 	if err != nil {
@@ -143,6 +150,22 @@ func modifyUser(c *cli.Context) error {
 		}
 
 		fmt.Println("Updated username", oldUsername, "to", user.Username)
+	} else if action == adminToggleOpLabel {
+		prompt3 := promptui.Prompt{
+			Label:     "Are you sure?",
+			IsConfirm: true,
+		}
+		confirm, err := prompt3.Run()
+		if err != nil || (confirm != "y" && confirm != "Y") {
+			fmt.Println("aborted")
+			return nil
+		}
+
+		if err := user.UpdateAdminStatus(db, adminToggleOpLabel == "Grant admin status"); err != nil {
+			return err
+		}
+
+		fmt.Println("Admin status updated for", user.Username)
 	}
 
 	return nil

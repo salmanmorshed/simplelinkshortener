@@ -12,6 +12,7 @@ import (
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Authorization, Accept-Encoding, Content-Type, Content-Length")
 		c.Header("Access-Control-Expose-Headers", "WWW-Authenticate, Content-Type, Content-Length, X-Version")
 
@@ -44,6 +45,19 @@ func BasicAuthMiddleware(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		c.Set("user", user)
+
+		c.Next()
+	}
+}
+
+func AdminFilterMiddleware(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user := c.MustGet("user").(*database.User)
+
+		if !user.IsAdmin {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
 
 		c.Next()
 	}

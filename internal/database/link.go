@@ -20,6 +20,25 @@ func (link *Link) IncrementVisits(db *gorm.DB) error {
 	return nil
 }
 
+func FetchLinksForUser(db *gorm.DB, user *User, limit int, offset int, inverseOrdering bool) ([]Link, error) {
+	var order string
+	if inverseOrdering {
+		order = "created_at desc"
+	} else {
+		order = "created_at"
+	}
+	links := make([]Link, limit)
+	err := db.Model(*user).Limit(limit).Offset(offset).Order(order).Association("Links").Find(links)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch links")
+	}
+	return links, nil
+}
+
+func GetLinkCountForUser(db *gorm.DB, user *User) int {
+	return int(db.Model(*user).Association("Links").Count())
+}
+
 func GetLinkByID(db *gorm.DB, id uint) (*Link, error) {
 	var linkRecord Link
 	if q := db.First(&linkRecord, id); q.Error != nil {

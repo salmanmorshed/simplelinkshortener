@@ -12,6 +12,7 @@ type User struct {
 	gorm.Model
 	Username string `gorm:"unique"`
 	Password string
+	IsAdmin  bool
 	Links    []Link `gorm:"foreignKey:UserID"`
 }
 
@@ -33,48 +34,18 @@ func (user *User) UpdatePassword(db *gorm.DB, newPassword string) error {
 	return nil
 }
 
+func (user *User) UpdateAdminStatus(db *gorm.DB, status bool) error {
+	if q := db.Model(&user).Update("is_admin", status); q.Error != nil {
+		return errors.New("failed to update admin status")
+	}
+	return nil
+}
+
 func (user *User) DeleteUser(db *gorm.DB) error {
 	if q := db.Delete(&user); q.Error != nil {
 		return errors.New("failed to delete user")
 	}
 	return nil
-}
-
-func (user *User) GetLinkCount(db *gorm.DB) int {
-	return int(db.Model(*user).Association("Links").Count())
-}
-
-func (user *User) FetchLinks(db *gorm.DB, links *[]Link, limit int, offset int, inverseOrdering bool) error {
-	var order string
-	if inverseOrdering {
-		order = "created_at desc"
-	} else {
-		order = "created_at"
-	}
-	err := db.Model(*user).Limit(limit).Offset(offset).Order(order).Association("Links").Find(links)
-	if err != nil {
-		return fmt.Errorf("failed to fetch links")
-	}
-	return nil
-}
-
-func AuthenticateUser(db *gorm.DB, username string, password string) (*User, error) {
-	var userRecord User
-	if q := db.Where("username = ?", username).First(&userRecord); q.Error != nil {
-		return nil, fmt.Errorf("failed to find user with given username: %s", username)
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(userRecord.Password), []byte(password)); err != nil {
-		return nil, fmt.Errorf("invalid password for username: %s", username)
-	}
-	return &userRecord, nil
-}
-
-func GetUserByUsername(db *gorm.DB, username string) (*User, error) {
-	var userRecord User
-	if q := db.Where("username = ?", username).First(&userRecord); q.Error != nil {
-		return nil, fmt.Errorf("user %s does not exist", username)
-	}
-	return &userRecord, nil
 }
 
 func GetAllUsers(db *gorm.DB) ([]User, error) {
@@ -84,6 +55,14 @@ func GetAllUsers(db *gorm.DB) ([]User, error) {
 		return nil, q.Error
 	}
 	return users, nil
+}
+
+func GetUserByUsername(db *gorm.DB, username string) (*User, error) {
+	var userRecord User
+	if q := db.Where("username = ?", username).First(&userRecord); q.Error != nil {
+		return nil, fmt.Errorf("user %s does not exist", username)
+	}
+	return &userRecord, nil
 }
 
 func CreateNewUser(db *gorm.DB, username string, password string) (*User, error) {
@@ -102,4 +81,15 @@ func CreateNewUser(db *gorm.DB, username string, password string) (*User, error)
 		return nil, q.Error
 	}
 	return &newUser, nil
+}
+
+func AuthenticateUser(db *gorm.DB, username string, password string) (*User, error) {
+	var userRecord User
+	if q := db.Where("username = ?", username).First(&userRecord); q.Error != nil {
+		return nil, fmt.Errorf("failed to find user with given username: %s", username)
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(userRecord.Password), []byte(password)); err != nil {
+		return nil, fmt.Errorf("invalid password for username: %s", username)
+	}
+	return &userRecord, nil
 }
