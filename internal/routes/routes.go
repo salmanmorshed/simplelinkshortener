@@ -143,9 +143,9 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 		user := c.MustGet("user").(*database.User)
 
 		var data struct {
-			URL string `json:"url" form:"url"`
+			URL string `json:"url"`
 		}
-		if err := c.ShouldBind(&data); err != nil {
+		if err := c.ShouldBindJSON(&data); err != nil || data.URL == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "url is required"})
 			return
 		}
