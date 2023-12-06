@@ -97,16 +97,16 @@ func modifyUser(c *cli.Context) error {
 		return nil
 	}
 
-	var adminToggleOpLabel string
-	if !user.IsAdmin {
-		adminToggleOpLabel = "Grant admin status"
+	var toggleAdminLabel string
+	if user.IsAdmin {
+		toggleAdminLabel = "Revoke admin status"
 	} else {
-		adminToggleOpLabel = "Revoke admin status"
+		toggleAdminLabel = "Grant admin status"
 	}
 
 	prompt1 := promptui.Select{
 		Label: "Operation",
-		Items: []string{"Change password", "Change username", adminToggleOpLabel},
+		Items: []string{"Change password", "Change username", toggleAdminLabel},
 	}
 	_, action, err := prompt1.Run()
 	if err != nil {
@@ -150,7 +150,7 @@ func modifyUser(c *cli.Context) error {
 		}
 
 		fmt.Println("Updated username", oldUsername, "to", user.Username)
-	} else if action == adminToggleOpLabel {
+	} else if action == toggleAdminLabel {
 		prompt3 := promptui.Prompt{
 			Label:     "Are you sure?",
 			IsConfirm: true,
@@ -161,7 +161,7 @@ func modifyUser(c *cli.Context) error {
 			return nil
 		}
 
-		if err := user.UpdateAdminStatus(db, adminToggleOpLabel == "Grant admin status"); err != nil {
+		if err := user.ToggleAdmin(db); err != nil {
 			return err
 		}
 
@@ -197,7 +197,7 @@ func deleteUser(c *cli.Context) error {
 		return nil
 	}
 
-	if err := user.DeleteUser(db); err != nil {
+	if err := user.Delete(db); err != nil {
 		return fmt.Errorf("failed to delete user %s", user.Username)
 	}
 

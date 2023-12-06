@@ -28,7 +28,7 @@ func startServer(c *cli.Context) error {
 		return fmt.Errorf("failed to initialize codec: %v", err)
 	}
 
-	router := routes.GetRouter(conf, db, codec)
+	router := routes.CreateRouter(conf, db, codec)
 	if conf.Server.UseTLS {
 		err = router.RunTLS(
 			fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port),

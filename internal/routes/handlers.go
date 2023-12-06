@@ -13,33 +13,25 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConfig) *gin.Engine {
-	if !conf.Debug {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	router := gin.Default()
-
-	if conf.Server.UseCORS {
-		router.Use(CORSMiddleware())
-	}
-
-	router.GET("/", func(c *gin.Context) {
+func AppRootHandler(conf *config.AppConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		if conf.HomeRedirect == "" {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 		c.Redirect(http.StatusFound, conf.HomeRedirect)
-	})
+	}
+}
 
-	router.GET("/:id", func(c *gin.Context) {
-		encodedID := c.Param("id")
-		if encodedID == "" || encodedID == "favicon.ico" {
+func OpenShortUrlHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		slug := c.Param("slug")
+		if slug == "" || slug == "favicon.ico" {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
-		decodedID := codec.StrToInt(encodedID)
+		decodedID := codec.StrToInt(slug)
 
 		if decodedID <= 0 {
 			c.AbortWithStatus(http.StatusNotFound)
@@ -55,13 +47,11 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 		link.IncrementVisits(db)
 
 		c.Redirect(http.StatusFound, link.URL)
-	})
+	}
+}
 
-	private := router.Group("/private", BasicAuthMiddleware(db))
-
-	private.GET("/web", ServeEmbeddedFile("web/index.html", "text/html"))
-
-	private.GET("/api/links", func(c *gin.Context) {
+func LinkListHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)
 
 		totalLinkCount := database.GetLinkCountForUser(db, user)
@@ -81,7 +71,7 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page value"})
 			return
 		}
-		if offset < 0 || offset > totalLinkCount {
+		if offset < 0 || offset >= totalLinkCount {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "offset value out of bounds"})
 			return
 		}
@@ -108,16 +98,18 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 			"limit":   limit,
 			"offset":  offset,
 		})
-	})
+	}
+}
 
-	private.GET("/api/links/:id", func(c *gin.Context) {
-		encodedID := c.Param("id")
-		if encodedID == "" || encodedID == "favicon.ico" {
+func LinkDetailsHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		slug := c.Param("slug")
+		if slug == "" || slug == "favicon.ico" {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
-		decodedID := codec.StrToInt(encodedID)
+		decodedID := codec.StrToInt(slug)
 
 		link, err := database.GetLinkByID(db, uint(decodedID))
 		if err != nil {
@@ -137,9 +129,11 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 			"visits":     link.Visits,
 			"created_at": link.CreatedAt,
 		})
-	})
+	}
+}
 
-	private.POST("/api/links", func(c *gin.Context) {
+func LinkCreateHandler(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)
 
 		var data struct {
@@ -161,14 +155,45 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 			return
 		}
 
+		slug := codec.IntToStr(int(link.ID))
+		if slug == "private" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "please try again"})
+			return
+		}
+
 		c.JSON(http.StatusCreated, gin.H{
-			"short_url": fmt.Sprintf("%s/%s", utils.GetBaseUrl(conf), codec.IntToStr(int(link.ID))),
+			"short_url": fmt.Sprintf("%s/%s", utils.GetBaseUrl(conf), slug),
 		})
-	})
+	}
+}
 
-	admin := private.Group("", AdminFilterMiddleware(db))
+func LinkDeleteHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		slug := c.Param("slug")
+		if slug == "" || slug == "favicon.ico" {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
 
-	admin.GET("/api/users", func(c *gin.Context) {
+		decodedID := codec.StrToInt(slug)
+
+		link, err := database.GetLinkByID(db, uint(decodedID))
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		if err := link.Delete(db); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete"})
+			return
+		}
+
+		c.AbortWithStatus(http.StatusNoContent)
+	}
+}
+
+func UserListHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		users, err := database.GetAllUsers(db)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
@@ -186,9 +211,11 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 		}
 
 		c.JSON(http.StatusOK, gin.H{"results": results})
-	})
+	}
+}
 
-	admin.Any("/api/users/:username", func(c *gin.Context) {
+func UserManageHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		username := c.Param("username")
 
 		user, err := database.GetUserByUsername(db, username)
@@ -215,7 +242,7 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 				user.UpdatePassword(db, data.Password)
 			}
 		} else if c.Request.Method == "DELETE" {
-			user.DeleteUser(db)
+			user.Delete(db)
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		} else if c.Request.Method != "GET" {
@@ -227,7 +254,5 @@ func GetRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConf
 			"username": user.Username,
 			"password": "<secret>",
 		})
-	})
-
-	return router
+	}
 }

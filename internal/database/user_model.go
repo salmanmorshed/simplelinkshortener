@@ -34,14 +34,14 @@ func (user *User) UpdatePassword(db *gorm.DB, newPassword string) error {
 	return nil
 }
 
-func (user *User) UpdateAdminStatus(db *gorm.DB, status bool) error {
-	if q := db.Model(&user).Update("is_admin", status); q.Error != nil {
+func (user *User) ToggleAdmin(db *gorm.DB) error {
+	if q := db.Model(&user).Update("is_admin", gorm.Expr("NOT is_admin")); q.Error != nil {
 		return errors.New("failed to update admin status")
 	}
 	return nil
 }
 
-func (user *User) DeleteUser(db *gorm.DB) error {
+func (user *User) Delete(db *gorm.DB) error {
 	if q := db.Delete(&user); q.Error != nil {
 		return errors.New("failed to delete user")
 	}

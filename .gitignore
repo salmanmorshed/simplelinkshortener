@@ -6,4 +6,4 @@ tmp
 *.yaml
 .air.toml
 frontend/node_modules
-internal/routes/web/*
+internal/routes/webroot/*

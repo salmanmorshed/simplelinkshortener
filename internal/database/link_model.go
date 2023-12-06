@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -20,6 +21,13 @@ func (link *Link) IncrementVisits(db *gorm.DB) error {
 	return nil
 }
 
+func (link *Link) Delete(db *gorm.DB) error {
+	if q := db.Delete(&link); q.Error != nil {
+		return errors.New("failed to delete link")
+	}
+	return nil
+}
+
 func FetchLinksForUser(db *gorm.DB, user *User, limit int, offset int, inverseOrdering bool) ([]Link, error) {
 	var order string
 	if inverseOrdering {
@@ -28,7 +36,7 @@ func FetchLinksForUser(db *gorm.DB, user *User, limit int, offset int, inverseOr
 		order = "created_at"
 	}
 	links := make([]Link, limit)
-	err := db.Model(*user).Limit(limit).Offset(offset).Order(order).Association("Links").Find(links)
+	err := db.Model(user).Limit(limit).Offset(offset).Order(order).Association("Links").Find(&links)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch links")
 	}
