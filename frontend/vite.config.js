@@ -5,7 +5,7 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 export default defineConfig({
     plugins: [vue(), viteSingleFile()],
     build: {
-        outDir: "../internal/routes/web",
+        outDir: "../internal/routes/webroot",
         emptyOutDir: true,
         rollupOptions: {
             input: "./web.html",
