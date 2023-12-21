@@ -71,7 +71,7 @@ func LinkListHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFun
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page value"})
 			return
 		}
-		if offset < 0 || offset >= totalLinkCount {
+		if offset < 0 || offset > totalLinkCount {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "offset value out of bounds"})
 			return
 		}
