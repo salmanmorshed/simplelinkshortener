@@ -57,10 +57,29 @@ func GetAllUsers(db *gorm.DB) ([]User, error) {
 	return users, nil
 }
 
+func GetUserByID(db *gorm.DB, userID uint) (*User, error) {
+	var userRecord User
+	if q := db.First(&userRecord, userID); q.Error != nil {
+		return nil, fmt.Errorf("user #%d does not exist", userID)
+	}
+	return &userRecord, nil
+}
+
 func GetUserByUsername(db *gorm.DB, username string) (*User, error) {
 	var userRecord User
 	if q := db.Where("username = ?", username).First(&userRecord); q.Error != nil {
 		return nil, fmt.Errorf("user %s does not exist", username)
+	}
+	return &userRecord, nil
+}
+
+func AuthenticateUser(db *gorm.DB, username string, password string) (*User, error) {
+	var userRecord User
+	if q := db.Where("username = ?", username).First(&userRecord); q.Error != nil {
+		return nil, fmt.Errorf("failed to find user with given username: %s", username)
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(userRecord.Password), []byte(password)); err != nil {
+		return nil, fmt.Errorf("invalid password for username: %s", username)
 	}
 	return &userRecord, nil
 }
@@ -81,15 +100,4 @@ func CreateNewUser(db *gorm.DB, username string, password string) (*User, error)
 		return nil, q.Error
 	}
 	return &newUser, nil
-}
-
-func AuthenticateUser(db *gorm.DB, username string, password string) (*User, error) {
-	var userRecord User
-	if q := db.Where("username = ?", username).First(&userRecord); q.Error != nil {
-		return nil, fmt.Errorf("failed to find user with given username: %s", username)
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(userRecord.Password), []byte(password)); err != nil {
-		return nil, fmt.Errorf("invalid password for username: %s", username)
-	}
-	return &userRecord, nil
 }

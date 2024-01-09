@@ -203,6 +203,7 @@ func UserListHandler(db *gorm.DB) gin.HandlerFunc {
 		results := make([]gin.H, len(users))
 		for i, user := range users {
 			results[i] = gin.H{
+				"id":         user.ID,
 				"username":   user.Username,
 				"password":   "<secret>",
 				"is_admin":   user.IsAdmin,
@@ -214,45 +215,89 @@ func UserListHandler(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-func UserManageHandler(db *gorm.DB) gin.HandlerFunc {
+func UserDetailsEditHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		username := c.Param("username")
+		var data struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
 
-		user, err := database.GetUserByUsername(db, username)
+		userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		user, err := database.GetUserByID(db, uint(userID))
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		passwordField := "<secret>"
+
+		if c.Request.Method == "GET" {
+			goto respondWithUserDetails
+		}
+
+		if err := c.BindJSON(&data); err != nil {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		if data.Username != "" {
+			if err := utils.CheckUsernameValidity(data.Username); err != nil {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			if err := user.UpdateUsername(db, data.Username); err != nil {
+				c.AbortWithStatus(http.StatusInternalServerError)
+				return
+			}
+		}
+
+		passwordField = "<secret:unchanged>"
+		if data.Password != "" {
+			if err := utils.CheckPasswordStrengthValidity(data.Password); err != nil {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			if err := user.UpdatePassword(db, data.Password); err != nil {
+				c.AbortWithStatus(http.StatusInternalServerError)
+				return
+			}
+			passwordField = "<secret:changed>"
+		}
+
+	respondWithUserDetails:
+		c.JSON(http.StatusOK, gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"password":   passwordField,
+			"is_admin":   user.IsAdmin,
+			"created_at": user.CreatedAt,
+		})
+	}
+}
+
+func UserDeleteHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		user, err := database.GetUserByID(db, uint(userID))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
-		if c.Request.Method == "PATCH" {
-			var data struct {
-				Username string `json:"username"`
-				Password string `json:"password"`
-			}
-			if err := c.ShouldBindJSON(&data); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-
-			if data.Username != "" {
-				user.UpdateUsername(db, data.Username)
-			}
-
-			if data.Password != "" {
-				user.UpdatePassword(db, data.Password)
-			}
-		} else if c.Request.Method == "DELETE" {
-			user.Delete(db)
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		} else if c.Request.Method != "GET" {
-			c.AbortWithStatus(http.StatusMethodNotAllowed)
+		if err := user.Delete(db); err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"username": user.Username,
-			"password": "<secret>",
-		})
+		c.AbortWithStatus(http.StatusNoContent)
 	}
 }

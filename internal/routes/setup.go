@@ -28,7 +28,9 @@ func CreateRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecC
 
 	admin := private.Group("", AdminFilterMiddleware(db))
 	admin.GET("/api/users", UserListHandler(db))
-	admin.Any("/api/users/:username", UserManageHandler(db))
+	admin.GET("/api/users/:id", UserDetailsEditHandler(db))
+	admin.PATCH("/api/users/:id", UserDetailsEditHandler(db))
+	admin.DELETE("/api/users/:id", UserDeleteHandler(db))
 
 	return router
 }
