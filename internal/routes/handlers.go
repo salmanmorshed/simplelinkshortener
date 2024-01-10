@@ -215,6 +215,43 @@ func UserListHandler(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+func UserCreateHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var data struct {
+			Username string `json:"username" binding:"required"`
+			Password string `json:"password" binding:"required"`
+		}
+		if err := c.BindJSON(&data); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing required fields"})
+			return
+		}
+
+		if err := utils.CheckUsernameValidity(data.Username); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err := utils.CheckPasswordStrengthValidity(data.Password); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		user, err := database.CreateNewUser(db, data.Username, data.Password)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"password":   "<secret>",
+			"is_admin":   user.IsAdmin,
+			"created_at": user.CreatedAt,
+		})
+	}
+}
+
 func UserDetailsEditHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var data struct {
