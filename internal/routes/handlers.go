@@ -68,7 +68,7 @@ func LinkListHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFun
 
 		offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page value"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset value"})
 			return
 		}
 		if offset < 0 || offset > totalLinkCount {
@@ -78,7 +78,7 @@ func LinkListHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFun
 
 		links, err := database.FetchLinksForUser(db, user, limit, offset, true)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -196,7 +196,7 @@ func UserListHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		users, err := database.GetAllUsers(db)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 
@@ -292,7 +292,6 @@ func UserDetailsEditHandler(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
-		passwordField = "<secret:unchanged>"
 		if data.Password != "" {
 			if err := utils.CheckPasswordStrengthValidity(data.Password); err != nil {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -302,7 +301,7 @@ func UserDetailsEditHandler(db *gorm.DB) gin.HandlerFunc {
 				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
-			passwordField = "<secret:changed>"
+			passwordField = "<updated>"
 		}
 
 	respondWithUserDetails:
