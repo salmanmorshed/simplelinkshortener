@@ -329,6 +329,11 @@ func UserDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		if user.IsAdmin {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "target user is admin"})
+			return
+		}
+
 		if err := user.Delete(db); err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
