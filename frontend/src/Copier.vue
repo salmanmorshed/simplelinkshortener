@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { onBeforeMount, ref } from "vue";
 
-const props = defineProps({ text: String });
+const props = defineProps<{ text: string }>();
 let status = ref("pending");
 
 async function clipboardHandler() {

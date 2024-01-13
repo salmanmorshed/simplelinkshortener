@@ -11,4 +11,7 @@ export default defineConfig({
             input: "./web.html",
         },
     },
+    server: {
+        host: "127.0.0.1",
+    },
 });

@@ -1,6 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { formatDateTime, makeGetRequest } from "./utils.js";
+import type { Link, Paginated } from "./types";
+import { formatDateTime, makeGetRequest } from "./utils";
 import Create from "./Create.vue";
 
 let limit = 10;
@@ -10,18 +11,21 @@ let busy = ref(true);
 
 const totalPages = computed(() => Math.ceil(total.value / limit));
 const activePage = computed({
-    get() {
+    get(): number {
         return Math.floor(offset.value / limit) + 1;
     },
-    set(value) {
+    set(value: number) {
         offset.value = (value - 1) * limit;
     },
 });
 
-let links = ref([]);
+let links = ref<Link[]>([]);
 
-async function fetchLinks() {
-    const data = await makeGetRequest(`/private/api/links?limit=${limit}&offset=${offset.value}`, busy);
+async function fetchLinks(_?: any) {
+    const data = (await makeGetRequest(
+        `/private/api/links?limit=${limit}&offset=${offset.value}`,
+        busy,
+    )) as Paginated<Link>;
     links.value = data.results;
     total.value = data.total;
 }

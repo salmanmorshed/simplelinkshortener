@@ -1,4 +1,6 @@
-export async function makeGetRequest(url, busyRef) {
+import type { Ref } from "vue";
+
+export async function makeGetRequest(url: string, busyRef: Ref<boolean>): Promise<any> {
     try {
         busyRef.value = true;
         const response = await fetch(url, { credentials: "include" });
@@ -11,7 +13,7 @@ export async function makeGetRequest(url, busyRef) {
     }
 }
 
-export async function makePostRequest(url, payload, busyRef) {
+export async function makePostRequest(url: string, payload: any, busyRef: Ref<boolean>): Promise<any> {
     try {
         busyRef.value = true;
         const response = await fetch(url, {
@@ -29,6 +31,6 @@ export async function makePostRequest(url, payload, busyRef) {
     }
 }
 
-export function formatDateTime(input) {
+export function formatDateTime(input: string): string {
     return new Date(Date.parse(input)).toLocaleString();
 }

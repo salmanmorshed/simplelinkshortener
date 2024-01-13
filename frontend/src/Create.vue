@@ -1,9 +1,10 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from "vue";
-import { makePostRequest } from "./utils.js";
+import type { NewLink } from "./types";
+import { makePostRequest } from "./utils";
 import Clipboard from "./Copier.vue";
 
-const emit = defineEmits(["closed"]);
+const emit = defineEmits<{ (e: "closed"): void }>();
 
 let open = ref(false);
 let busy = ref(false);
@@ -11,8 +12,8 @@ let createDialogURL = ref("");
 let newShortLinkURL = ref("");
 
 async function createLink() {
-    const data = await makePostRequest("/private/api/links", { url: createDialogURL.value }, busy);
-    newShortLinkURL.value = data["short_url"];
+    const data = (await makePostRequest("/private/api/links", { url: createDialogURL.value }, busy)) as NewLink;
+    newShortLinkURL.value = data.short_url;
     createDialogURL.value = "";
 }
 
