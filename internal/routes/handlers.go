@@ -23,7 +23,7 @@ func AppRootHandler(conf *config.AppConfig) gin.HandlerFunc {
 	}
 }
 
-func OpenShortUrlHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+func OpenShortUrlHandler(db *gorm.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.Param("slug")
 		if slug == "" || slug == "favicon.ico" {
@@ -50,7 +50,7 @@ func OpenShortUrlHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.Handle
 	}
 }
 
-func LinkListHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+func LinkListHandler(db *gorm.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)
 
@@ -101,7 +101,7 @@ func LinkListHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFun
 	}
 }
 
-func LinkDetailsHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+func LinkDetailsHandler(db *gorm.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.Param("slug")
 		if slug == "" || slug == "favicon.ico" {
@@ -132,7 +132,7 @@ func LinkDetailsHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.Handler
 	}
 }
 
-func LinkCreateHandler(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+func LinkCreateHandler(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)
 
@@ -167,7 +167,7 @@ func LinkCreateHandler(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.C
 	}
 }
 
-func LinkDeleteHandler(db *gorm.DB, codec *intstrcodec.CodecConfig) gin.HandlerFunc {
+func LinkDeleteHandler(db *gorm.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.Param("slug")
 		if slug == "" || slug == "favicon.ico" {

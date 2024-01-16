@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.CodecConfig) *gin.Engine {
+func CreateRouter(conf *config.AppConfig, db *gorm.DB, codec *intstrcodec.Codec) *gin.Engine {
 	if !conf.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
