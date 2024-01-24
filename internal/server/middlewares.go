@@ -1,12 +1,13 @@
-package routes
+package server
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
+
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
-	"gorm.io/gorm"
 )
 
 func CORSMiddleware() gin.HandlerFunc {
@@ -27,7 +28,7 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-func BasicAuthMiddleware(db *gorm.DB) gin.HandlerFunc {
+func BasicAuthMiddleware(db *sqlx.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		username, password, hasAuth := c.Request.BasicAuth()
 
@@ -37,8 +38,8 @@ func BasicAuthMiddleware(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		user, err := database.AuthenticateUser(db, username, password)
-		if err != nil {
+		user, err := database.RetrieveUser(db, username)
+		if err != nil || !user.CheckPassword(password) {
 			c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
@@ -50,7 +51,7 @@ func BasicAuthMiddleware(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-func AdminFilterMiddleware(db *gorm.DB) gin.HandlerFunc {
+func AdminFilterMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)
 

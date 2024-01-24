@@ -1,13 +1,12 @@
-package routes
+package server
 
 import (
+	"embed"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
-
-	"embed"
 
 	"github.com/gin-gonic/gin"
 )

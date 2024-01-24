@@ -10,8 +10,7 @@ import (
 
 var Version string
 
-type AppConfig struct {
-	Debug        bool   `yaml:"debug"`
+type Config struct {
 	URLPrefix    string `yaml:"url_prefix,omitempty"`
 	HomeRedirect string `yaml:"home_redirect,omitempty"`
 
@@ -43,7 +42,7 @@ type AppConfig struct {
 	} `yaml:"server"`
 }
 
-func LoadConfigFromFile(configPath string) (*AppConfig, error) {
+func LoadConfigFromFile(configPath string) (*Config, error) {
 	cleanedConfigPath, err := filepath.Abs(filepath.Clean(configPath))
 	if err != nil {
 		return nil, err
@@ -53,32 +52,34 @@ func LoadConfigFromFile(configPath string) (*AppConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can not open file: %s", cleanedConfigPath)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
-	var conf *AppConfig
+	var conf *Config
 	decoder := yaml.NewDecoder(file)
 	if err := decoder.Decode(&conf); err != nil {
 		return nil, err
 	}
+
 	return conf, nil
 }
 
-func WriteConfigToFile(configPath string, conf *AppConfig) error {
+func WriteConfigToFile(configPath string, conf *Config) error {
 	cleanedConfigPath, err := filepath.Abs(filepath.Clean(configPath))
 	if err != nil {
 		return err
 	}
+
 	file, err := os.OpenFile(cleanedConfigPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	encoder := yaml.NewEncoder(file)
-	defer encoder.Close()
-
+	defer func() { _ = encoder.Close() }()
 	if err := encoder.Encode(conf); err != nil {
 		return err
 	}
+
 	return nil
 }

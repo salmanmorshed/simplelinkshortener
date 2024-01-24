@@ -36,7 +36,7 @@ watch(offset, fetchLinks, { immediate: true });
 <template>
     <article>
         <Create @closed="fetchLinks((offset = 0))" />
-        <table role="grid">
+        <table>
             <thead>
                 <tr>
                     <th>Slug</th>

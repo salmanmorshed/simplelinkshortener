@@ -6,7 +6,7 @@ import (
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 )
 
-func GetBaseUrl(conf *config.AppConfig) string {
+func GetBaseURL(conf *config.Config) string {
 	if conf.URLPrefix != "" {
 		return conf.URLPrefix
 	}
@@ -23,21 +23,4 @@ func GetBaseUrl(conf *config.AppConfig) string {
 		}
 	}
 	return fmt.Sprintf("%s://%s%s", scheme, conf.Server.Host, portSuffix)
-}
-
-func StringifyConfigDBExtraArgs(conf *config.AppConfig) string {
-	var ret, sep string
-	if conf.Database.Type == "postgresql" {
-		ret = " "
-		sep = " "
-	} else if conf.Database.Type == "mysql" {
-		ret = "?"
-		sep = "&"
-	} else {
-		return ""
-	}
-	for k, v := range conf.Database.ExtraArgs {
-		ret = fmt.Sprintf("%s%s%s=%s", ret, sep, k, v)
-	}
-	return ret
 }

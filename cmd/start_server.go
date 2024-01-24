@@ -3,32 +3,20 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/salmanmorshed/intstrcodec"
+
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
-	"github.com/salmanmorshed/simplelinkshortener/internal/database"
-	"github.com/salmanmorshed/simplelinkshortener/internal/routes"
-	"github.com/urfave/cli/v2"
+	"github.com/salmanmorshed/simplelinkshortener/internal/server"
 )
 
-func startServer(c *cli.Context) error {
-	var err error
-
-	conf, err := config.LoadConfigFromFile(c.Value("config").(string))
-	if err != nil {
-		return fmt.Errorf("failed to load config: %v", err)
-	}
-
-	db, err := database.CreateGORM(conf)
-	if err != nil {
-		return fmt.Errorf("failed to connect to db: %v", err)
-	}
-
+func startServer(conf *config.Config, db *sqlx.DB) error {
 	codec, err := intstrcodec.CreateCodec(conf.Codec.Alphabet, conf.Codec.BlockSize, conf.Codec.MinLength)
 	if err != nil {
 		return fmt.Errorf("failed to initialize codec: %v", err)
 	}
 
-	router := routes.CreateRouter(conf, db, codec)
+	router := server.CreateRouter(conf, db, codec)
 	if conf.Server.UseTLS {
 		err = router.RunTLS(
 			fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port),
@@ -39,7 +27,7 @@ func startServer(c *cli.Context) error {
 		err = router.Run(fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port))
 	}
 	if err != nil {
-		return fmt.Errorf("failed to run server: %v", err)
+		return fmt.Errorf("failed to start server: %v", err)
 	}
 
 	return nil

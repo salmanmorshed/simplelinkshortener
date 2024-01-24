@@ -4,18 +4,19 @@ import (
 	"fmt"
 
 	"github.com/manifoldco/promptui"
+	"github.com/urfave/cli/v2"
+
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
-	"github.com/urfave/cli/v2"
 )
 
-func setupConfig(c *cli.Context) error {
-	var conf config.AppConfig
+func setupConfigFileHandler(c *cli.Context) error {
 	var err error
+	var conf config.Config
 
 	prompt1 := promptui.Select{
 		Label: "Choose database type",
-		Items: []string{"sqlite", "postgresql", "mysql"},
+		Items: []string{"sqlite3", "postgresql"},
 	}
 	_, conf.Database.Type, err = prompt1.Run()
 	if err != nil {
@@ -42,9 +43,10 @@ func setupConfig(c *cli.Context) error {
 			defaultUser = "postgres"
 			conf.Database.ExtraArgs = map[string]string{"sslmode": "prefer"}
 		} else if conf.Database.Type == "mysql" {
-			defaultPort = "3306"
-			defaultUser = "root"
-			conf.Database.ExtraArgs = map[string]string{"charset": "utf8mb4"}
+			return fmt.Errorf("mysql support is temporarily disabled")
+			//defaultPort = "3306"
+			//defaultUser = "root"
+			//conf.Database.ExtraArgs = map[string]string{"charset": "utf8mb4", "parseTime": "true"}
 		} else {
 			return fmt.Errorf("unsupported database type: %s", conf.Database.Type)
 		}

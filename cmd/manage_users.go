@@ -3,25 +3,15 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/manifoldco/promptui"
+
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
 	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
-	"github.com/urfave/cli/v2"
-	"gorm.io/gorm"
 )
 
-func addUser(c *cli.Context) error {
-	conf, err := config.LoadConfigFromFile(c.Value("config").(string))
-	if err != nil {
-		return fmt.Errorf("failed to load config: %v", err)
-	}
-
-	db, err := database.CreateGORM(conf)
-	if err != nil {
-		return fmt.Errorf("failed to connect to db: %v", err)
-	}
-
+func addUser(_ *config.Config, db *sqlx.DB) error {
 	prompt1 := promptui.Prompt{
 		Label:    "Username",
 		Validate: utils.CheckUsernameValidity,
@@ -43,7 +33,7 @@ func addUser(c *cli.Context) error {
 		return nil
 	}
 
-	newUser, err := database.CreateNewUser(db, username, password)
+	newUser, err := database.CreateUser(db, username, password)
 	if err != nil {
 		return err
 	}
@@ -52,8 +42,8 @@ func addUser(c *cli.Context) error {
 	return nil
 }
 
-func displayUserSelection(db *gorm.DB, promptMessage string) (*database.User, error) {
-	users, err := database.GetAllUsers(db)
+func displayUserSelection(db *sqlx.DB, promptMessage string) (*database.User, error) {
+	users, err := database.RetrieveAllUsers(db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch users")
 	}
@@ -73,7 +63,7 @@ func displayUserSelection(db *gorm.DB, promptMessage string) (*database.User, er
 		return nil, fmt.Errorf("user selection failed")
 	}
 
-	user, err := database.GetUserByUsername(db, username)
+	user, err := database.RetrieveUser(db, username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user %s", username)
 	}
@@ -81,17 +71,7 @@ func displayUserSelection(db *gorm.DB, promptMessage string) (*database.User, er
 	return user, nil
 }
 
-func modifyUser(c *cli.Context) error {
-	conf, err := config.LoadConfigFromFile(c.Value("config").(string))
-	if err != nil {
-		return fmt.Errorf("failed to load config: %v", err)
-	}
-
-	db, err := database.CreateGORM(conf)
-	if err != nil {
-		return fmt.Errorf("failed to connect to db: %v", err)
-	}
-
+func modifyUser(_ *config.Config, db *sqlx.DB) error {
 	user, err := displayUserSelection(db, "Select user")
 	if err != nil {
 		return nil
@@ -171,17 +151,7 @@ func modifyUser(c *cli.Context) error {
 	return nil
 }
 
-func deleteUser(c *cli.Context) error {
-	conf, err := config.LoadConfigFromFile(c.Value("config").(string))
-	if err != nil {
-		return fmt.Errorf("failed to load config: %v", err)
-	}
-
-	db, err := database.CreateGORM(conf)
-	if err != nil {
-		return fmt.Errorf("failed to connect to db: %v", err)
-	}
-
+func deleteUser(_ *config.Config, db *sqlx.DB) error {
 	user, err := displayUserSelection(db, "Select user to delete")
 	if err != nil {
 		return nil

@@ -29,23 +29,22 @@ jobs:
             npm run build
 
       - name: Build backend
-        run: go build -ldflags "-X github.com/salmanmorshed/simplelinkshortener/internal/config.Version=${{ github.ref_name }}" -o simplelinkshortener main.go
-
-      - name: Set executable
-        run: chmod +x simplelinkshortener
+        run: go build \
+          -ldflags "-X github.com/salmanmorshed/simplelinkshortener/internal/config.Version=${{ github.ref_name }}" \
+          -o bin/simplelinkshortener_linux_x64 .
 
       - name: Create new release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            simplelinkshortener
+            simplelinkshortener_linux_x64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete old releases
         uses: dev-drprasad/delete-older-releases@v0.2.1
         with:
-          keep_latest: 2
+          keep_latest: 3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
