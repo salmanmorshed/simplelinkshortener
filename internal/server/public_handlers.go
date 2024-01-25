@@ -30,19 +30,16 @@ func OpenShortUrlHandler(db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc 
 		}
 
 		decodedID := codec.StrToInt(slug)
-
 		if decodedID <= 0 {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
-		link, err := database.RetrieveLink(db, uint(decodedID))
+		link, err := database.RetrieveLinkAndBumpVisits(db, uint(decodedID))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
-
-		_ = link.IncrementVisits(db, 1)
 
 		c.Redirect(http.StatusMovedPermanently, link.URL)
 	}

@@ -3,6 +3,7 @@ package database
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -36,12 +37,26 @@ func RetrieveLink(db *sqlx.DB, id uint) (*Link, error) {
 }
 
 func (link *Link) IncrementVisits(db *sqlx.DB, count uint) error {
-	q := db.Rebind("UPDATE links SET visits = visits + ? WHERE id = ? RETURNING *")
-	err := db.Get(&link, q, count, link.ID)
+	q := db.Rebind("UPDATE links SET visits = visits + ? WHERE id = ?")
+	r, err := db.Exec(q, count, link.ID)
 	if err != nil {
 		return errors.New("failed to increment visits")
 	}
+	if a, err := r.RowsAffected(); err != nil || a != 1 {
+		log.Printf("failed to increment visits: ID=%d, count=%d, RowsAffected=%d", link.ID, count, a)
+	}
+	link.Visits += count
 	return nil
+}
+
+func RetrieveLinkAndBumpVisits(db *sqlx.DB, id uint) (*Link, error) {
+	var link Link
+	q := db.Rebind("UPDATE links SET visits = visits + 1 WHERE id = ? RETURNING *")
+	err := db.Get(&link, q, id)
+	if err != nil {
+		return nil, errors.New("failed to retrieve link")
+	}
+	return &link, nil
 }
 
 func (link *Link) Delete(db *sqlx.DB) error {
