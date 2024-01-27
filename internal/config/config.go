@@ -31,14 +31,17 @@ type Config struct {
 	} `yaml:"database"`
 
 	Server struct {
-		Host     string `yaml:"host"`
-		Port     string `yaml:"port"`
-		UseTLS   bool   `yaml:"use_tls"`
+		Host string `yaml:"host"`
+		Port string `yaml:"port"`
+
+		UseTLS   bool `yaml:"use_tls"`
 		TLSFiles struct {
 			Certificate string `yaml:"certificate,omitempty"`
 			PrivateKey  string `yaml:"private_key,omitempty"`
 		} `yaml:"tls_files,omitempty"`
-		UseCORS bool `yaml:"use_cors,omitempty"`
+
+		UseCache bool `yaml:"use_cache,omitempty"`
+		UseCORS  bool `yaml:"use_cors,omitempty"`
 	} `yaml:"server"`
 }
 
