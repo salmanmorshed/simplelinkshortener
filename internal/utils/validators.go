@@ -7,6 +7,8 @@ import (
 	"unicode"
 )
 
+var validUsernameCharsRE = regexp.MustCompile("^[a-zA-Z0-9_]+$")
+
 func CheckURLValidity(rawURL string) bool {
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
@@ -29,8 +31,11 @@ func CheckUsernameValidity(username string) error {
 		return errors.New("username is too short (minimum length: 3)")
 	}
 
-	validUsernameRegex := regexp.MustCompile("^[a-zA-Z0-9_]+$")
-	if !validUsernameRegex.MatchString(username) {
+	if len(username) > 32 {
+		return errors.New("username is too long (maximum length: 32)")
+	}
+
+	if !validUsernameCharsRE.MatchString(username) {
 		return errors.New("username must only contain letters, numbers, and underscores")
 	}
 
