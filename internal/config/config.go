@@ -44,7 +44,7 @@ type Config struct {
 		CacheConfig struct {
 			Capacity  uint `yaml:"capacity,omitempty"`
 			SyncAfter uint `yaml:"sync_after,omitempty"`
-		} `yaml:"cache_config"`
+		} `yaml:"cache_config,omitempty"`
 
 		UseCORS bool `yaml:"use_cors,omitempty"`
 	} `yaml:"server"`
