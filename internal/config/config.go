@@ -40,8 +40,13 @@ type Config struct {
 			PrivateKey  string `yaml:"private_key,omitempty"`
 		} `yaml:"tls_files,omitempty"`
 
-		UseCache bool `yaml:"use_cache,omitempty"`
-		UseCORS  bool `yaml:"use_cors,omitempty"`
+		UseCache    bool `yaml:"use_cache,omitempty"`
+		CacheConfig struct {
+			Capacity  uint `yaml:"capacity,omitempty"`
+			SyncAfter uint `yaml:"sync_after,omitempty"`
+		} `yaml:"cache_config"`
+
+		UseCORS bool `yaml:"use_cors,omitempty"`
 	} `yaml:"server"`
 }
 
