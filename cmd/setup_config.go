@@ -24,7 +24,7 @@ func setupConfigFileHandler(c *cli.Context) error {
 		return nil
 	}
 
-	if conf.Database.Type == "sqlite" {
+	if conf.Database.Type == "sqlite3" {
 		prompt2 := promptui.Prompt{
 			Label:     "Path to sqlite file",
 			Default:   "./db.sqlite3",
