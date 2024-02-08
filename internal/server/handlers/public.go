@@ -2,16 +2,15 @@ package handlers
 
 import (
 	"errors"
-	"log"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/salmanmorshed/intstrcodec"
+	"log"
+	"net/http"
 
-	"github.com/salmanmorshed/simplelinkshortener/internal/caching"
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
+	"github.com/salmanmorshed/simplelinkshortener/internal/server/cache"
 )
 
 func HomePageHandler(conf *config.Config) gin.HandlerFunc {
@@ -26,7 +25,7 @@ func HomePageHandler(conf *config.Config) gin.HandlerFunc {
 
 func OpenShortLinkHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 	if conf.Server.UseCache {
-		cache := caching.NewCache(
+		lc := cache.New(
 			conf.Server.CacheConfig.Capacity,
 			func(slug string) (*database.Link, error) {
 				decodedID := codec.StrToInt(slug)
@@ -54,7 +53,7 @@ func OpenShortLinkHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.C
 				return
 			}
 
-			link, err := cache.Resolve(slug)
+			link, err := lc.Resolve(slug)
 			if err != nil {
 				c.AbortWithStatus(http.StatusNotFound)
 				return

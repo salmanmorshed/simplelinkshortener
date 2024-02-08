@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ func inject(handler func(*config.Config, *sqlx.DB) error) func(*cli.Context) err
 	}
 }
 
-func RunCLI() {
+func main() {
 	app := &cli.App{
 		Usage:     "Create a personal link shortening service",
 		ArgsUsage: " ",
