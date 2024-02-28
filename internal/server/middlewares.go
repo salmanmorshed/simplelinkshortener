@@ -9,6 +9,7 @@ import (
 	"github.com/salmanmorshed/simplelinkshortener/internal"
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
+	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
 )
 
 func CORSMiddleware(conf *config.Config) gin.HandlerFunc {
@@ -44,7 +45,7 @@ func BasicAuthMiddleware(store database.Store) gin.HandlerFunc {
 		}
 
 		user, err := store.RetrieveUser(username)
-		if err != nil || !user.CheckPassword(password) {
+		if err != nil || !utils.ValidatePassword(user.Password, password) {
 			c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "incorrect username and/or password"})
 			return

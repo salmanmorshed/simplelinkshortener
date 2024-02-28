@@ -1,10 +1,6 @@
 package database
 
-import (
-	"time"
-
-	"golang.org/x/crypto/bcrypt"
-)
+import "time"
 
 type Link struct {
 	ID        uint      `db:"id"`
@@ -19,12 +15,4 @@ type User struct {
 	Password  string    `db:"password"`
 	IsAdmin   bool      `db:"is_admin"`
 	CreatedAt time.Time `db:"created_at"`
-}
-
-func (user *User) CheckPassword(password string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-	if err != nil {
-		return false
-	}
-	return true
 }
