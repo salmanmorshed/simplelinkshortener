@@ -23,7 +23,7 @@ let links = ref<Link[]>([]);
 
 async function fetchLinks(_?: any) {
     const data = (await makeGetRequest(
-        `/private/api/links?limit=${limit}&offset=${offset.value}`,
+        `/api/links?limit=${limit}&offset=${offset.value}`,
         busy,
     )) as Paginated<Link>;
     links.value = data.results;

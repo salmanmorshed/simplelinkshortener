@@ -12,7 +12,7 @@ let createDialogURL = ref("");
 let newShortLinkURL = ref("");
 
 async function createLink() {
-    const data = (await makePostRequest("/private/api/links", { url: createDialogURL.value }, busy)) as NewLink;
+    const data = (await makePostRequest("/api/links", { url: createDialogURL.value }, busy)) as NewLink;
     newShortLinkURL.value = data.short_url;
     createDialogURL.value = "";
 }
