@@ -34,11 +34,9 @@ type Config struct {
 		Host string `yaml:"host"`
 		Port string `yaml:"port"`
 
-		UseTLS    bool `yaml:"use_tls"`
-		TLSConfig struct {
-			Certificate string `yaml:"certificate,omitempty"`
-			PrivateKey  string `yaml:"private_key,omitempty"`
-		} `yaml:"tls_config,omitempty"`
+		UseTLS         bool   `yaml:"use_tls"`
+		TLSCertificate string `yaml:"tls_certificate,omitempty"`
+		TLSPrivateKey  string `yaml:"tls_private_key,omitempty"`
 
 		UseCache    bool `yaml:"use_cache,omitempty"`
 		CacheConfig struct {

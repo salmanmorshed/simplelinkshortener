@@ -147,7 +147,7 @@ func initConfigFileHandler(c *cli.Context) error {
 				Default:   fmt.Sprintf("/etc/letsencrypt/live/%s/fullchain.pem", domain),
 				AllowEdit: true,
 			}
-			conf.Server.TLSConfig.Certificate, err = prompt10.Run()
+			conf.Server.TLSCertificate, err = prompt10.Run()
 			if err != nil {
 				fmt.Println("aborted")
 				return nil
@@ -158,7 +158,7 @@ func initConfigFileHandler(c *cli.Context) error {
 				Default:   fmt.Sprintf("/etc/letsencrypt/live/%s/privkey.pem", domain),
 				AllowEdit: true,
 			}
-			conf.Server.TLSConfig.PrivateKey, err = prompt11.Run()
+			conf.Server.TLSPrivateKey, err = prompt11.Run()
 			if err != nil {
 				fmt.Println("aborted")
 				return nil

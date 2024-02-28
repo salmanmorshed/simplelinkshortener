@@ -20,8 +20,8 @@ func startServer(conf *config.Config, store database.Store) error {
 	if conf.Server.UseTLS {
 		err = router.RunTLS(
 			fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port),
-			conf.Server.TLSConfig.Certificate,
-			conf.Server.TLSConfig.PrivateKey,
+			conf.Server.TLSCertificate,
+			conf.Server.TLSPrivateKey,
 		)
 	} else {
 		err = router.Run(fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port))
