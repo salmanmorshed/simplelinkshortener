@@ -6,4 +6,5 @@ tmp
 *.yaml
 .air.toml
 frontend/node_modules
-internal/server/webroot/*
+frontend/dist/*
+internal/server/web/*
