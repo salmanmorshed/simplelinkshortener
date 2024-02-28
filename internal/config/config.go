@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var Version string
+var Version = "devel"
 
 type Config struct {
 	URLPrefix    string `yaml:"url_prefix,omitempty"`

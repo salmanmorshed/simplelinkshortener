@@ -35,23 +35,8 @@ func setupConfigFileHandler(c *cli.Context) error {
 			fmt.Println("aborted")
 			return nil
 		}
-	} else {
-		var defaultPort, defaultUser string
-
-		if conf.Database.Type == "postgresql" {
-			defaultPort = "5432"
-			defaultUser = "postgres"
-			conf.Database.ExtraArgs = map[string]string{"sslmode": "prefer"}
-		} else if conf.Database.Type == "mysql" {
-			return fmt.Errorf("mysql support is temporarily disabled")
-			//defaultPort = "3306"
-			//defaultUser = "root"
-			//conf.Database.ExtraArgs = map[string]string{"charset": "utf8mb4", "parseTime": "true"}
-		} else {
-			return fmt.Errorf("unsupported database type: %s", conf.Database.Type)
-		}
-
-		fmt.Println("Enter database details")
+	} else if conf.Database.Type == "postgresql" {
+		fmt.Println("Enter database connection details")
 
 		prompt2 := promptui.Prompt{
 			Label:     "Host",
@@ -66,7 +51,7 @@ func setupConfigFileHandler(c *cli.Context) error {
 
 		prompt3 := promptui.Prompt{
 			Label:     "Port",
-			Default:   defaultPort,
+			Default:   "5432",
 			AllowEdit: true,
 		}
 		conf.Database.Port, err = prompt3.Run()
@@ -77,7 +62,7 @@ func setupConfigFileHandler(c *cli.Context) error {
 
 		prompt4 := promptui.Prompt{
 			Label:     "Username",
-			Default:   defaultUser,
+			Default:   "postgres",
 			AllowEdit: true,
 		}
 		conf.Database.Username, err = prompt4.Run()
@@ -98,7 +83,7 @@ func setupConfigFileHandler(c *cli.Context) error {
 		}
 
 		prompt6 := promptui.Prompt{
-			Label:     "DB name",
+			Label:     "Database",
 			Default:   "shortener",
 			AllowEdit: true,
 		}
@@ -107,6 +92,13 @@ func setupConfigFileHandler(c *cli.Context) error {
 			fmt.Println("aborted")
 			return nil
 		}
+
+		conf.Database.ExtraArgs = map[string]string{
+			"sslmode":  "prefer",
+			"timezone": "UTC",
+		}
+	} else {
+		return fmt.Errorf("unsupported database type: %s", conf.Database.Type)
 	}
 
 	var useRP string

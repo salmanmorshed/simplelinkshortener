@@ -2,13 +2,11 @@ package database
 
 import (
 	"fmt"
-
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
-	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
 )
 
 const (
@@ -48,18 +46,7 @@ const (
 
 func InitDatabaseConnection(conf *config.Config) (*sqlx.DB, error) {
 	if conf.Database.Type == "postgresql" {
-		db, err := sqlx.Connect(
-			"pgx",
-			fmt.Sprintf(
-				"host=%s port=%s user=%s password=%s dbname=%s%s",
-				conf.Database.Host,
-				conf.Database.Port,
-				conf.Database.Username,
-				conf.Database.Password,
-				conf.Database.Name,
-				utils.StringifyConfigDBExtraArgs(conf),
-			),
-		)
+		db, err := sqlx.Connect("pgx", getPostgresConnectionURL(conf))
 		if err != nil {
 			return nil, err
 		}
@@ -74,4 +61,24 @@ func InitDatabaseConnection(conf *config.Config) (*sqlx.DB, error) {
 		return db, nil
 	}
 	return nil, fmt.Errorf("invalid database type: %s", conf.Database.Type)
+}
+
+func getPostgresConnectionURL(conf *config.Config) string {
+	url := fmt.Sprintf(
+		"%s://%s:%s@%s:%s/%s",
+		conf.Database.Type,
+		conf.Database.Username,
+		conf.Database.Password,
+		conf.Database.Host,
+		conf.Database.Port,
+		conf.Database.Name,
+	)
+	if len(conf.Database.ExtraArgs) > 0 {
+		sep := '?'
+		for k, v := range conf.Database.ExtraArgs {
+			url = fmt.Sprintf("%s%c%s=%s", url, sep, k, v)
+			sep = '&'
+		}
+	}
+	return url
 }
