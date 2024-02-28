@@ -9,9 +9,9 @@ simplelinkshortener is a standalone application for creating private self-hosted
 go install "github.com/salmanmorshed/simplelinkshortener@latest"
 ```
 
-### 2. Run the setup command:
+### 2. Run the init command:
 ```bash
-~/go/bin/simplelinkshortener setup
+~/go/bin/simplelinkshortener init
 ```
 This command will guide you through the initial setup and generate a config file containing database and web server configuration. It'll also generate a randomized alphabet required to create the short links. You can specify the location of the config file using the global `--config` option.
 
@@ -69,7 +69,7 @@ Content-Type: application/json
 
 **Example Request:**
 ```http
-GET /api/links?page=1
+GET /api/links
 
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -97,4 +97,9 @@ A work-in-progress frontend app is served on `/web`. You can use it to create or
 
 
 ## License
-SimpleLinkShortener is licensed under the GNU General Public License version 2. You are free to use, modify, and distribute this software for both non-commercial and commercial purposes, subject to the terms and conditions of the GPLv2.
+This project is licensed under the [MIT License](https://github.com/git/git-scm.com/blob/main/MIT-LICENSE.txt). The MIT License is a permissive open-source license that allows you to freely use, modify, and distribute this software for both commercial and non-commercial purposes, provided you include the original copyright notice and disclaimer. Feel free to explore, contribute, and build upon this project with confidence under the terms of the MIT License.
+
+
+
+
+
