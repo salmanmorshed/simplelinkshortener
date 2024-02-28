@@ -2,25 +2,32 @@ package server
 
 import (
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/salmanmorshed/simplelinkshortener/internal"
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
 )
 
-func CORSMiddleware() gin.HandlerFunc {
+func CORSMiddleware(conf *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Accept-Encoding, Content-Type, Content-Length")
-		c.Header("Access-Control-Expose-Headers", "WWW-Authenticate, Content-Type, Content-Length, X-API-Version")
-		c.Header("X-API-Version", config.Version)
+		origin := c.GetHeader("Origin")
+		if conf.Server.UseCORS && origin != "" && slices.Contains(conf.Server.CORSOrigins, origin) {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Accept-Encoding, Content-Type, Content-Length")
+			c.Header("Access-Control-Expose-Headers", "WWW-Authenticate, Content-Type, Content-Length, X-API-Version")
 
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
+			if c.Request.Method == "OPTIONS" {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
 		}
+
+		c.Header("X-API-Version", internal.Version)
 
 		c.Next()
 	}

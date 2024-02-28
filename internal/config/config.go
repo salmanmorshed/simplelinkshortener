@@ -8,8 +8,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var Version = "devel"
-
 type Config struct {
 	URLPrefix    string `yaml:"url_prefix,omitempty"`
 	HomeRedirect string `yaml:"home_redirect,omitempty"`
@@ -38,13 +36,11 @@ type Config struct {
 		TLSCertificate string `yaml:"tls_certificate,omitempty"`
 		TLSPrivateKey  string `yaml:"tls_private_key,omitempty"`
 
-		UseCache    bool `yaml:"use_cache,omitempty"`
-		CacheConfig struct {
-			Capacity  uint `yaml:"capacity,omitempty"`
-			SyncAfter uint `yaml:"sync_after,omitempty"`
-		} `yaml:"cache_config,omitempty"`
+		UseCache      bool `yaml:"use_cache,omitempty"`
+		CacheCapacity uint `yaml:"cache_capacity,omitempty"`
 
-		UseCORS bool `yaml:"use_cors,omitempty"`
+		UseCORS     bool     `yaml:"use_cors,omitempty"`
+		CORSOrigins []string `yaml:"cors_origins,omitempty"`
 	} `yaml:"server"`
 }
 

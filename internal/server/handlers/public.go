@@ -29,7 +29,7 @@ func HomePageHandler(conf *config.Config) gin.HandlerFunc {
 func OpenShortLinkHandler(conf *config.Config, store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	if conf.Server.UseCache {
 		lc := cache.New(
-			conf.Server.CacheConfig.Capacity,
+			conf.Server.CacheCapacity,
 			func(slug string) (*database.Link, error) {
 				decodedID := codec.StrToInt(slug)
 				if decodedID <= 0 {
@@ -46,7 +46,7 @@ func OpenShortLinkHandler(conf *config.Config, store database.Store, codec *ints
 			func(link *database.Link, hits uint) error {
 				return store.IncrementVisits(link.ID, hits)
 			},
-			conf.Server.CacheConfig.SyncAfter,
+			10,
 		)
 
 		return func(c *gin.Context) {

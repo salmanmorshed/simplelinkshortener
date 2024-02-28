@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/salmanmorshed/intstrcodec"
 
+	"github.com/salmanmorshed/simplelinkshortener/internal"
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
 	"github.com/salmanmorshed/simplelinkshortener/internal/server/handlers"
@@ -16,15 +17,12 @@ import (
 var efs embed.FS
 
 func CreateRouter(conf *config.Config, store database.Store, codec *intstrcodec.Codec) *gin.Engine {
-	if strings.HasPrefix(config.Version, "v") {
+	if strings.HasPrefix(internal.Version, "v") {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.Default()
-
-	if conf.Server.UseCORS {
-		router.Use(CORSMiddleware())
-	}
+	router.Use(CORSMiddleware(conf))
 
 	router.GET("/", handlers.HomePageHandler(conf))
 	router.GET("/:slug", handlers.OpenShortLinkHandler(conf, store, codec))

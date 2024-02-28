@@ -7,6 +7,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/salmanmorshed/simplelinkshortener/internal"
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
 )
@@ -32,10 +33,11 @@ func main() {
 	app := &cli.App{
 		Usage:     "Create a personal link shortening service",
 		ArgsUsage: " ",
+		Version:   internal.Version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "config",
-				Value: "./config.yaml",
+				Value: "config.yaml",
 				Usage: "Path to config file",
 			},
 		},
