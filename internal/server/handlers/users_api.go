@@ -4,15 +4,14 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
 	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
 )
 
-func UserListHandler(db *sqlx.DB) gin.HandlerFunc {
+func UserListHandler(store database.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		users, err := database.RetrieveAllUsers(db)
+		users, err := store.RetrieveAllUsers()
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
@@ -32,7 +31,7 @@ func UserListHandler(db *sqlx.DB) gin.HandlerFunc {
 	}
 }
 
-func UserCreateHandler(db *sqlx.DB) gin.HandlerFunc {
+func UserCreateHandler(store database.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var data struct {
 			Username string `json:"username" binding:"required"`
@@ -53,7 +52,7 @@ func UserCreateHandler(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 
-		user, err := database.CreateUser(db, data.Username, data.Password)
+		user, err := store.CreateUser(data.Username, data.Password)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -68,14 +67,14 @@ func UserCreateHandler(db *sqlx.DB) gin.HandlerFunc {
 	}
 }
 
-func UserDetailsEditHandler(db *sqlx.DB) gin.HandlerFunc {
+func UserDetailsEditHandler(store database.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var data struct {
 			Username string `json:"username"`
 			Password string `json:"password"`
 		}
 
-		user, err := database.RetrieveUser(db, c.Param("username"))
+		user, err := store.RetrieveUser(c.Param("username"))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
@@ -95,7 +94,7 @@ func UserDetailsEditHandler(db *sqlx.DB) gin.HandlerFunc {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := user.UpdateUsername(db, data.Username); err != nil {
+			if err := store.UpdateUsername(user.Username, data.Username); err != nil {
 				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
@@ -106,7 +105,7 @@ func UserDetailsEditHandler(db *sqlx.DB) gin.HandlerFunc {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := user.UpdatePassword(db, data.Password); err != nil {
+			if err := store.UpdatePassword(user.Username, data.Password); err != nil {
 				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
@@ -122,9 +121,9 @@ func UserDetailsEditHandler(db *sqlx.DB) gin.HandlerFunc {
 	}
 }
 
-func UserDeleteHandler(db *sqlx.DB) gin.HandlerFunc {
+func UserDeleteHandler(store database.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user, err := database.RetrieveUser(db, c.Param("username"))
+		user, err := store.RetrieveUser(c.Param("username"))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
@@ -135,7 +134,7 @@ func UserDeleteHandler(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 
-		if err := user.Delete(db); err != nil {
+		if err := store.DeleteUser(user.Username); err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}

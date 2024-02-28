@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -44,7 +45,7 @@ const (
 	`
 )
 
-func InitDatabaseConnection(conf *config.Config) (*sqlx.DB, error) {
+func initPostgresOrSqliteDB(conf *config.Config) (*sqlx.DB, error) {
 	if conf.Database.Type == "postgresql" {
 		db, err := sqlx.Connect("pgx", getPostgresConnectionURL(conf))
 		if err != nil {

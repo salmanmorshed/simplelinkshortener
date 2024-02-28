@@ -31,7 +31,7 @@ Access to the API and the web UI is restricted by HTTP Basic Authentication. You
 ## API Endpoints
 ### 1. Create a new short link
 
-- **URL**: `/private/api/links`
+- **URL**: `/api/links`
 - **Method**: POST
 - **Authentication**: Basic Authentication
 - **Request Body**: JSON with a `url` field (string, required).
@@ -39,7 +39,7 @@ Access to the API and the web UI is restricted by HTTP Basic Authentication. You
 
 **Example Request:**
 ```http
-POST /private/api/links
+POST /api/links
 Content-Type: application/json
 
 {
@@ -59,7 +59,7 @@ Content-Type: application/json
 
 ### 2. Retrieve links created by a user
 
-- **URL**: `/private/api/links`
+- **URL**: `/api/links`
 - **Method**: GET
 - **Authentication**: Basic Authentication
 - **Query Parameters**: 
@@ -69,7 +69,7 @@ Content-Type: application/json
 
 **Example Request:**
 ```http
-GET /private/api/links?page=1
+GET /api/links?page=1
 
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -93,7 +93,7 @@ Content-Type: application/json
 ```
 
 ## Web frontend
-A work-in-progress frontend app is served on `/private/web`. You can use it to create or view your links.
+A work-in-progress frontend app is served on `/web`. You can use it to create or view your links.
 
 
 ## License

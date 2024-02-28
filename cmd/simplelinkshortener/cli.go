@@ -5,27 +5,26 @@ import (
 	"log"
 	"os"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/urfave/cli/v2"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
 )
 
-func inject(handler func(*config.Config, *sqlx.DB) error) func(*cli.Context) error {
+func inject(handler func(*config.Config, database.Store) error) func(*cli.Context) error {
 	return func(c *cli.Context) error {
 		conf, err := config.LoadConfigFromFile(c.Value("config").(string))
 		if err != nil {
-			return fmt.Errorf("failed to load config: %v", err)
+			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		db, err := database.InitDatabaseConnection(conf)
+		store, err := database.NewPgStore(conf)
 		if err != nil {
-			return fmt.Errorf("failed to initialize db connection: %v", err)
+			return fmt.Errorf("failed to initialize db connection: %w", err)
 		}
-		defer func() { _ = db.Close() }()
+		defer store.Close()
 
-		return handler(conf, db)
+		return handler(conf, store)
 	}
 }
 
@@ -42,10 +41,10 @@ func main() {
 		},
 		Commands: []*cli.Command{
 			{
-				Name:     "setup",
+				Name:     "init",
 				Usage:    "Initialize a config file",
 				Category: "Configuration",
-				Action:   setupConfigFileHandler,
+				Action:   initConfigFileHandler,
 			},
 			{
 				Name:     "start",

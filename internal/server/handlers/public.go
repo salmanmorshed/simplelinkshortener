@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/salmanmorshed/intstrcodec"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
@@ -27,7 +26,7 @@ func HomePageHandler(conf *config.Config) gin.HandlerFunc {
 	}
 }
 
-func OpenShortLinkHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
+func OpenShortLinkHandler(conf *config.Config, store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	if conf.Server.UseCache {
 		lc := cache.New(
 			conf.Server.CacheConfig.Capacity,
@@ -37,7 +36,7 @@ func OpenShortLinkHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.C
 					return nil, errors.New("failed to decode slug")
 				}
 
-				link, err := database.RetrieveLink(db, uint(decodedID))
+				link, err := store.RetrieveLink(uint(decodedID))
 				if err != nil {
 					return nil, errors.New("failed to retrieve link")
 				}
@@ -45,7 +44,7 @@ func OpenShortLinkHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.C
 				return link, nil
 			},
 			func(link *database.Link, hits uint) error {
-				return link.IncrementVisits(db, hits)
+				return store.IncrementVisits(link.ID, hits)
 			},
 			conf.Server.CacheConfig.SyncAfter,
 		)
@@ -79,7 +78,7 @@ func OpenShortLinkHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.C
 				return
 			}
 
-			link, err := database.RetrieveLinkAndBumpVisits(db, uint(decodedID))
+			link, err := store.RetrieveLinkAndBumpVisits(uint(decodedID))
 			if err != nil {
 				log.Println(err)
 				c.AbortWithStatus(http.StatusNotFound)

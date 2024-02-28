@@ -10,7 +10,7 @@ import (
 	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
 )
 
-func setupConfigFileHandler(c *cli.Context) error {
+func initConfigFileHandler(c *cli.Context) error {
 	var err error
 	var conf config.Config
 
@@ -177,7 +177,7 @@ func setupConfigFileHandler(c *cli.Context) error {
 		}
 	}
 
-	conf.HomeRedirect = "/private/web"
+	conf.HomeRedirect = "/web"
 
 	conf.Codec.Alphabet = utils.CreateRandomAlphabet()
 	conf.Codec.BlockSize = 24
@@ -185,7 +185,7 @@ func setupConfigFileHandler(c *cli.Context) error {
 
 	configPath := c.Value("config").(string)
 	if err2 := config.WriteConfigToFile(configPath, &conf); err2 != nil {
-		return fmt.Errorf("failed to initialize config: %v", err2)
+		return fmt.Errorf("failed to initialize config: %w", err2)
 	}
 
 	fmt.Println("Config file generated:", configPath)

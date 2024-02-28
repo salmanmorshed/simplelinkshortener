@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/salmanmorshed/intstrcodec"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
@@ -14,11 +13,11 @@ import (
 	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
 )
 
-func LinkListHandler(db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
+func LinkListHandler(store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)
 
-		totalLinkCount := database.GetLinkCountForUser(db, user)
+		totalLinkCount := store.GetLinkCountForUser(user.Username)
 
 		limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
 		if err != nil {
@@ -40,7 +39,7 @@ func LinkListHandler(db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 			return
 		}
 
-		links, err := database.RetrieveLinksForUser(db, user, limit, offset)
+		links, err := store.RetrieveLinksForUser(user.Username, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -65,7 +64,7 @@ func LinkListHandler(db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 	}
 }
 
-func LinkDetailsHandler(db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
+func LinkDetailsHandler(store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.Param("slug")
 		if slug == "" || slug == "favicon.ico" {
@@ -75,7 +74,7 @@ func LinkDetailsHandler(db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 
 		decodedID := codec.StrToInt(slug)
 
-		link, err := database.RetrieveLink(db, uint(decodedID))
+		link, err := store.RetrieveLink(uint(decodedID))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
@@ -96,7 +95,7 @@ func LinkDetailsHandler(db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 	}
 }
 
-func LinkCreateHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
+func LinkCreateHandler(conf *config.Config, store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.MustGet("user").(*database.User)
 
@@ -113,7 +112,7 @@ func LinkCreateHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.Code
 			return
 		}
 
-		link, err := database.CreateNewLink(db, data.URL, user)
+		link, err := store.CreateLink(data.URL, user.Username)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
@@ -131,7 +130,7 @@ func LinkCreateHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.Code
 	}
 }
 
-func LinkDeleteHandler(db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
+func LinkDeleteHandler(store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.Param("slug")
 		if slug == "" || slug == "favicon.ico" {
@@ -141,13 +140,13 @@ func LinkDeleteHandler(db *sqlx.DB, codec *intstrcodec.Codec) gin.HandlerFunc {
 
 		decodedID := codec.StrToInt(slug)
 
-		link, err := database.RetrieveLink(db, uint(decodedID))
+		link, err := store.RetrieveLink(uint(decodedID))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
-		if err := link.Delete(db); err != nil {
+		if err := store.DeleteLink(link.ID); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete"})
 			return
 		}

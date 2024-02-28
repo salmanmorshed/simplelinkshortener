@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
@@ -27,7 +26,7 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-func BasicAuthMiddleware(db *sqlx.DB) gin.HandlerFunc {
+func BasicAuthMiddleware(store database.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		username, password, hasAuth := c.Request.BasicAuth()
 
@@ -37,7 +36,7 @@ func BasicAuthMiddleware(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 
-		user, err := database.RetrieveUser(db, username)
+		user, err := store.RetrieveUser(username)
 		if err != nil || !user.CheckPassword(password) {
 			c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "incorrect username and/or password"})

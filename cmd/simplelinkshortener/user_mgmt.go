@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/manifoldco/promptui"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
@@ -11,7 +10,7 @@ import (
 	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
 )
 
-func addUser(_ *config.Config, db *sqlx.DB) error {
+func addUser(_ *config.Config, store database.Store) error {
 	prompt1 := promptui.Prompt{
 		Label:    "Username",
 		Validate: utils.CheckUsernameValidity,
@@ -33,7 +32,7 @@ func addUser(_ *config.Config, db *sqlx.DB) error {
 		return nil
 	}
 
-	newUser, err := database.CreateUser(db, username, password)
+	newUser, err := store.CreateUser(username, password)
 	if err != nil {
 		return err
 	}
@@ -42,8 +41,8 @@ func addUser(_ *config.Config, db *sqlx.DB) error {
 	return nil
 }
 
-func displayUserSelection(db *sqlx.DB, promptMessage string) (*database.User, error) {
-	users, err := database.RetrieveAllUsers(db)
+func displayUserSelection(store database.Store, promptMessage string) (*database.User, error) {
+	users, err := store.RetrieveAllUsers()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch users")
 	}
@@ -63,7 +62,7 @@ func displayUserSelection(db *sqlx.DB, promptMessage string) (*database.User, er
 		return nil, fmt.Errorf("user selection failed")
 	}
 
-	user, err := database.RetrieveUser(db, username)
+	user, err := store.RetrieveUser(username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user %s", username)
 	}
@@ -71,8 +70,8 @@ func displayUserSelection(db *sqlx.DB, promptMessage string) (*database.User, er
 	return user, nil
 }
 
-func modifyUser(_ *config.Config, db *sqlx.DB) error {
-	user, err := displayUserSelection(db, "Select user")
+func modifyUser(_ *config.Config, store database.Store) error {
+	user, err := displayUserSelection(store, "Select user")
 	if err != nil {
 		return nil
 	}
@@ -106,7 +105,7 @@ func modifyUser(_ *config.Config, db *sqlx.DB) error {
 			return nil
 		}
 
-		if err := user.UpdatePassword(db, newPassword); err != nil {
+		if err := store.UpdatePassword(user.Username, newPassword); err != nil {
 			return err
 		}
 
@@ -125,11 +124,11 @@ func modifyUser(_ *config.Config, db *sqlx.DB) error {
 		}
 
 		oldUsername := user.Username
-		if err := user.UpdateUsername(db, newUsername); err != nil {
+		if err := store.UpdateUsername(user.Username, newUsername); err != nil {
 			return err
 		}
 
-		fmt.Println("Updated username", oldUsername, "to", user.Username)
+		fmt.Println("Updated username", oldUsername, "to", newUsername)
 	} else if action == toggleAdminLabel {
 		prompt3 := promptui.Prompt{
 			Label:     "Are you sure?",
@@ -141,7 +140,7 @@ func modifyUser(_ *config.Config, db *sqlx.DB) error {
 			return nil
 		}
 
-		if err := user.ToggleAdmin(db); err != nil {
+		if err := store.ToggleAdmin(user.Username); err != nil {
 			return err
 		}
 
@@ -151,8 +150,8 @@ func modifyUser(_ *config.Config, db *sqlx.DB) error {
 	return nil
 }
 
-func deleteUser(_ *config.Config, db *sqlx.DB) error {
-	user, err := displayUserSelection(db, "Select user to delete")
+func deleteUser(_ *config.Config, store database.Store) error {
+	user, err := displayUserSelection(store, "Select user to delete")
 	if err != nil {
 		return nil
 	}
@@ -167,7 +166,7 @@ func deleteUser(_ *config.Config, db *sqlx.DB) error {
 		return nil
 	}
 
-	if err := user.Delete(db); err != nil {
+	if err := store.DeleteUser(user.Username); err != nil {
 		return fmt.Errorf("failed to delete user %s", user.Username)
 	}
 
