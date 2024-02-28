@@ -27,12 +27,14 @@ watch(open, val => {
 </script>
 
 <template>
-    <button type="button" class="open" @click="open = true" v-bind="$attrs">Create New Short Link</button>
+    <button type="button" class="open" @click="open = true" v-bind="$attrs">Create new short link</button>
     <dialog :open="open">
         <article>
             <header>
-                <a href="#" class="close" @click.prevent="open = false"></a>
-                <div>Create New Short Link</div>
+                <button aria-label="Close" rel="prev" @click.prevent="open = false"></button>
+                <p>
+                    <strong>Create a new short link</strong>
+                </p>
             </header>
             <form @submit.prevent="createLink()">
                 <input
@@ -41,7 +43,7 @@ watch(open, val => {
                     placeholder="Enter a link (e.g. https://example.com/...)"
                     required
                 />
-                <button type="submit" :aria-busy="busy">Shorten Link</button>
+                <button type="submit" :aria-busy="busy">Shorten link</button>
             </form>
             <footer :hidden="!newShortLinkURL">
                 <a :href="newShortLinkURL" target="_blank">{{ newShortLinkURL }}</a>
@@ -52,9 +54,6 @@ watch(open, val => {
 </template>
 
 <style scoped>
-dialog > article {
-    width: 50%;
-}
 dialog > article > footer {
     text-align: left;
 }
