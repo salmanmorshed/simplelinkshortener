@@ -34,14 +34,14 @@ func BasicAuthMiddleware(db *sqlx.DB) gin.HandlerFunc {
 
 		if !hasAuth {
 			c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing authentication credentials"})
 			return
 		}
 
 		user, err := database.RetrieveUser(db, username)
 		if err != nil || !user.CheckPassword(password) {
 			c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "incorrect username and/or password"})
 			return
 		}
 
@@ -56,7 +56,7 @@ func AdminFilterMiddleware() gin.HandlerFunc {
 		user := c.MustGet("user").(*database.User)
 
 		if !user.IsAdmin {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "user is not admin"})
 			return
 		}
 
