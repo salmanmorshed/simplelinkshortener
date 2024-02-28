@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"embed"
 	"errors"
+	"log"
+	"net/http"
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/salmanmorshed/intstrcodec"
-	"log"
-	"net/http"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/config"
 	"github.com/salmanmorshed/simplelinkshortener/internal/database"
@@ -19,6 +22,7 @@ func HomePageHandler(conf *config.Config) gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
+
 		c.Redirect(http.StatusFound, conf.HomeRedirect)
 	}
 }
@@ -84,5 +88,24 @@ func OpenShortLinkHandler(conf *config.Config, db *sqlx.DB, codec *intstrcodec.C
 
 			c.Redirect(http.StatusMovedPermanently, link.URL)
 		}
+	}
+}
+
+func EmbeddedWebpageHandler(efs embed.FS, relPath string) func(*gin.Context) {
+	return func(c *gin.Context) {
+		content, err := efs.ReadFile(relPath)
+		if err != nil {
+			log.Println(err)
+			if os.IsNotExist(err) {
+				c.AbortWithStatus(http.StatusNotFound)
+			} else {
+				c.String(http.StatusInternalServerError, "Error opening file")
+			}
+			return
+		}
+
+		c.Header("Content-Type", "text/html")
+		_, _ = c.Writer.Write(content)
+		c.Writer.Flush()
 	}
 }
