@@ -5,13 +5,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/salmanmorshed/simplelinkshortener/internal/database"
-	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
+	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-func UserListHandler(store database.Store) gin.HandlerFunc {
+func UserListHandler(store db.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		users, err := store.RetrieveAllUsers()
+		users, err := store.RetrieveAllUsers(c)
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
@@ -31,7 +30,7 @@ func UserListHandler(store database.Store) gin.HandlerFunc {
 	}
 }
 
-func UserCreateHandler(store database.Store) gin.HandlerFunc {
+func UserCreateHandler(store db.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var data struct {
 			Username string `json:"username" binding:"required"`
@@ -42,17 +41,17 @@ func UserCreateHandler(store database.Store) gin.HandlerFunc {
 			return
 		}
 
-		if err := utils.CheckUsernameValidity(data.Username); err != nil {
+		if err := db.CheckUsernameValidity(data.Username); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		if err := utils.CheckPasswordStrengthValidity(data.Password); err != nil {
+		if err := db.CheckPasswordStrengthValidity(data.Password); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		user, err := store.CreateUser(data.Username, data.Password)
+		user, err := store.CreateUser(c, data.Username, data.Password)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -67,14 +66,14 @@ func UserCreateHandler(store database.Store) gin.HandlerFunc {
 	}
 }
 
-func UserDetailsEditHandler(store database.Store) gin.HandlerFunc {
+func UserDetailsEditHandler(store db.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var data struct {
 			Username string `json:"username"`
 			Password string `json:"password"`
 		}
 
-		user, err := store.RetrieveUser(c.Param("username"))
+		user, err := store.RetrieveUser(c, c.Param("username"))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
@@ -90,22 +89,22 @@ func UserDetailsEditHandler(store database.Store) gin.HandlerFunc {
 		}
 
 		if data.Username != "" {
-			if err := utils.CheckUsernameValidity(data.Username); err != nil {
+			if err := db.CheckUsernameValidity(data.Username); err != nil {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := store.UpdateUsername(user.Username, data.Username); err != nil {
+			if err := store.UpdateUsername(c, user.Username, data.Username); err != nil {
 				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
 		}
 
 		if data.Password != "" {
-			if err := utils.CheckPasswordStrengthValidity(data.Password); err != nil {
+			if err := db.CheckPasswordStrengthValidity(data.Password); err != nil {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := store.UpdatePassword(user.Username, data.Password); err != nil {
+			if err := store.UpdatePassword(c, user.Username, data.Password); err != nil {
 				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
@@ -121,9 +120,9 @@ func UserDetailsEditHandler(store database.Store) gin.HandlerFunc {
 	}
 }
 
-func UserDeleteHandler(store database.Store) gin.HandlerFunc {
+func UserDeleteHandler(store db.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user, err := store.RetrieveUser(c.Param("username"))
+		user, err := store.RetrieveUser(c, c.Param("username"))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
@@ -134,7 +133,7 @@ func UserDeleteHandler(store database.Store) gin.HandlerFunc {
 			return
 		}
 
-		if err := store.DeleteUser(user.Username); err != nil {
+		if err := store.DeleteUser(c, user.Username); err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}

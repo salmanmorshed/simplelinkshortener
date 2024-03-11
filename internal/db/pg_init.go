@@ -1,4 +1,4 @@
-package database
+package db
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/salmanmorshed/simplelinkshortener/internal/config"
+	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 )
 
 const (
@@ -45,7 +45,7 @@ const (
 	`
 )
 
-func initPostgresOrSqliteDB(conf *config.Config) (*sqlx.DB, error) {
+func initPostgresOrSqliteDB(conf *cfg.Config) (*sqlx.DB, error) {
 	if conf.Database.Type == "postgresql" {
 		db, err := sqlx.Connect("pgx", getPostgresConnectionURL(conf))
 		if err != nil {
@@ -64,7 +64,7 @@ func initPostgresOrSqliteDB(conf *config.Config) (*sqlx.DB, error) {
 	return nil, fmt.Errorf("invalid database type: %s", conf.Database.Type)
 }
 
-func getPostgresConnectionURL(conf *config.Config) string {
+func getPostgresConnectionURL(conf *cfg.Config) string {
 	url := fmt.Sprintf(
 		"%s://%s:%s@%s:%s/%s",
 		conf.Database.Type,

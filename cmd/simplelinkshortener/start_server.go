@@ -2,29 +2,27 @@ package main
 
 import (
 	"fmt"
+	"github.com/urfave/cli/v2"
 
-	"github.com/salmanmorshed/intstrcodec"
-
-	"github.com/salmanmorshed/simplelinkshortener/internal/config"
-	"github.com/salmanmorshed/simplelinkshortener/internal/database"
-	"github.com/salmanmorshed/simplelinkshortener/internal/server"
+	"github.com/salmanmorshed/simplelinkshortener/internal/web"
 )
 
-func startServer(conf *config.Config, store database.Store) error {
-	codec, err := intstrcodec.CreateCodec(conf.Codec.Alphabet, conf.Codec.BlockSize, conf.Codec.MinLength)
+func startServerHandler(CLICtx *cli.Context) error {
+	app, err := newAppFromCLI(CLICtx)
 	if err != nil {
-		return fmt.Errorf("failed to initialize codec: %w", err)
+		return err
 	}
 
-	router := server.CreateRouter(conf, store, codec)
-	if conf.Server.UseTLS {
+	router := web.CreateRouter(app.Conf, app.Store, app.Codec)
+
+	if app.Conf.Server.UseTLS {
 		err = router.RunTLS(
-			fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port),
-			conf.Server.TLSCertificate,
-			conf.Server.TLSPrivateKey,
+			fmt.Sprintf("%s:%s", app.Conf.Server.Host, app.Conf.Server.Port),
+			app.Conf.Server.TLSCertificate,
+			app.Conf.Server.TLSPrivateKey,
 		)
 	} else {
-		err = router.Run(fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port))
+		err = router.Run(fmt.Sprintf("%s:%s", app.Conf.Server.Host, app.Conf.Server.Port))
 	}
 	if err != nil {
 		return fmt.Errorf("failed to start server: %w", err)

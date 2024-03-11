@@ -6,13 +6,12 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/urfave/cli/v2"
 
-	"github.com/salmanmorshed/simplelinkshortener/internal/config"
-	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
+	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 )
 
-func initConfigFileHandler(c *cli.Context) error {
+func initConfigHandler(c *cli.Context) error {
 	var err error
-	var conf config.Config
+	var conf cfg.Config
 
 	prompt1 := promptui.Select{
 		Label: "Choose database type",
@@ -20,8 +19,7 @@ func initConfigFileHandler(c *cli.Context) error {
 	}
 	_, conf.Database.Type, err = prompt1.Run()
 	if err != nil {
-		fmt.Println("aborted")
-		return nil
+		return Aborted
 	}
 
 	if conf.Database.Type == "sqlite3" {
@@ -111,8 +109,7 @@ func initConfigFileHandler(c *cli.Context) error {
 	}
 	_, useRP, err = prompt7.Run()
 	if err != nil {
-		fmt.Println("aborted")
-		return nil
+		return Aborted
 	}
 
 	prompt8 := promptui.Select{
@@ -121,8 +118,7 @@ func initConfigFileHandler(c *cli.Context) error {
 	}
 	_, useTLS, err = prompt8.Run()
 	if err != nil {
-		fmt.Println("aborted")
-		return nil
+		return Aborted
 	}
 
 	prompt9 := promptui.Prompt{
@@ -132,8 +128,7 @@ func initConfigFileHandler(c *cli.Context) error {
 	}
 	domain, err = prompt9.Run()
 	if err != nil {
-		fmt.Println("aborted")
-		return nil
+		return Aborted
 	}
 
 	if useRP == "no" {
@@ -179,12 +174,12 @@ func initConfigFileHandler(c *cli.Context) error {
 
 	conf.HomeRedirect = "/web"
 
-	conf.Codec.Alphabet = utils.CreateRandomAlphabet()
+	conf.Codec.Alphabet = cfg.CreateRandomAlphabet()
 	conf.Codec.BlockSize = 24
 	conf.Codec.MinLength = 5
 
 	configPath := c.Value("config").(string)
-	if err2 := config.WriteConfigToFile(configPath, &conf); err2 != nil {
+	if err2 := cfg.WriteConfigToFile(configPath, &conf); err2 != nil {
 		return fmt.Errorf("failed to initialize config: %w", err2)
 	}
 

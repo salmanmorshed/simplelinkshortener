@@ -4,7 +4,8 @@ bin
 tmp
 *.sqlite3
 *.yaml
+*.yml
 .air.toml
 frontend/node_modules
 frontend/dist/*
-internal/server/web/*
+internal/web/static/*

@@ -1,30 +1,14 @@
-package utils
+package db
 
 import (
 	"errors"
-	"net/url"
 	"regexp"
 	"unicode"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var validUsernameCharsRE = regexp.MustCompile("^[a-zA-Z0-9_]+$")
-
-func CheckURLValidity(rawURL string) bool {
-	parsedURL, err := url.Parse(rawURL)
-	if err != nil {
-		return false
-	}
-
-	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return false
-	}
-
-	if parsedURL.Host == "" {
-		return false
-	}
-
-	return true
-}
 
 func CheckUsernameValidity(username string) error {
 	if len(username) < 3 {
@@ -70,4 +54,9 @@ func CheckPasswordStrengthValidity(password string) error {
 	}
 
 	return nil
+}
+
+func ValidatePassword(hashedPassword, inputPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(inputPassword))
+	return err == nil
 }

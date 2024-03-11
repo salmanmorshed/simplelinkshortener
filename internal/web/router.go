@@ -1,4 +1,4 @@
-package server
+package web
 
 import (
 	"embed"
@@ -8,15 +8,15 @@ import (
 	"github.com/salmanmorshed/intstrcodec"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal"
-	"github.com/salmanmorshed/simplelinkshortener/internal/config"
-	"github.com/salmanmorshed/simplelinkshortener/internal/database"
-	"github.com/salmanmorshed/simplelinkshortener/internal/server/handlers"
+	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
+	"github.com/salmanmorshed/simplelinkshortener/internal/db"
+	"github.com/salmanmorshed/simplelinkshortener/internal/web/handlers"
 )
 
-//go:embed web/*
+//go:embed static/*
 var efs embed.FS
 
-func CreateRouter(conf *config.Config, store database.Store, codec *intstrcodec.Codec) *gin.Engine {
+func CreateRouter(conf *cfg.Config, store db.Store, codec *intstrcodec.Codec) *gin.Engine {
 	if strings.HasPrefix(internal.Version, "v") {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -25,9 +25,9 @@ func CreateRouter(conf *config.Config, store database.Store, codec *intstrcodec.
 	router.Use(CORSMiddleware(conf))
 
 	router.GET("/", handlers.HomePageHandler(conf))
-	router.GET("/:slug", handlers.OpenShortLinkHandler(conf, store, codec))
+	router.GET("/:slug", handlers.OpenShortLinkHandler(store, codec))
 
-	router.GET("/web", BasicAuthMiddleware(store), handlers.EmbeddedWebpageHandler(efs, "web/index.html"))
+	router.GET("/web", BasicAuthMiddleware(store), handlers.EmbeddedWebpageHandler(efs, "static/index.html"))
 
 	api := router.Group("/api", BasicAuthMiddleware(store))
 	api.GET("/links", handlers.LinkListHandler(store, codec))

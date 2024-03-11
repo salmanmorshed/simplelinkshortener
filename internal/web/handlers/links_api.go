@@ -8,16 +8,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/salmanmorshed/intstrcodec"
 
-	"github.com/salmanmorshed/simplelinkshortener/internal/config"
-	"github.com/salmanmorshed/simplelinkshortener/internal/database"
-	"github.com/salmanmorshed/simplelinkshortener/internal/utils"
+	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
+	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-func LinkListHandler(store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
+func LinkListHandler(store db.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user := c.MustGet("user").(*database.User)
+		user := c.MustGet("user").(*db.User)
 
-		totalLinkCount := store.GetLinkCountForUser(user.Username)
+		totalLinkCount := store.GetLinkCountForUser(c, user.Username)
 
 		limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
 		if err != nil {
@@ -39,7 +38,7 @@ func LinkListHandler(store database.Store, codec *intstrcodec.Codec) gin.Handler
 			return
 		}
 
-		links, err := store.RetrieveLinksForUser(user.Username, limit, offset)
+		links, err := store.RetrieveLinksForUser(c, user.Username, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -48,7 +47,7 @@ func LinkListHandler(store database.Store, codec *intstrcodec.Codec) gin.Handler
 		results := make([]gin.H, len(links))
 		for i, link := range links {
 			results[i] = gin.H{
-				"slug":       codec.IntToStr(int(link.ID)),
+				"slug":       codec.Encode(int(link.ID)),
 				"url":        link.URL,
 				"visits":     link.Visits,
 				"created_at": link.CreatedAt,
@@ -64,7 +63,7 @@ func LinkListHandler(store database.Store, codec *intstrcodec.Codec) gin.Handler
 	}
 }
 
-func LinkDetailsHandler(store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
+func LinkDetailsHandler(store db.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.Param("slug")
 		if slug == "" || slug == "favicon.ico" {
@@ -72,22 +71,22 @@ func LinkDetailsHandler(store database.Store, codec *intstrcodec.Codec) gin.Hand
 			return
 		}
 
-		decodedID := codec.StrToInt(slug)
+		decodedID := codec.Decode(slug)
 
-		link, err := store.RetrieveLink(uint(decodedID))
+		link, err := store.RetrieveLink(c, uint(decodedID))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
-		user := c.MustGet("user").(*database.User)
+		user := c.MustGet("user").(*db.User)
 		if user.Username != link.CreatedBy {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"slug":       codec.IntToStr(int(link.ID)),
+			"slug":       codec.Encode(int(link.ID)),
 			"url":        link.URL,
 			"visits":     link.Visits,
 			"created_at": link.CreatedAt,
@@ -95,9 +94,9 @@ func LinkDetailsHandler(store database.Store, codec *intstrcodec.Codec) gin.Hand
 	}
 }
 
-func LinkCreateHandler(conf *config.Config, store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
+func LinkCreateHandler(conf *cfg.Config, store db.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user := c.MustGet("user").(*database.User)
+		user := c.MustGet("user").(*db.User)
 
 		var data struct {
 			URL string `json:"url"`
@@ -107,30 +106,30 @@ func LinkCreateHandler(conf *config.Config, store database.Store, codec *intstrc
 			return
 		}
 
-		if !utils.CheckURLValidity(data.URL) {
+		if !CheckURLValidity(data.URL) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "url is invalid"})
 			return
 		}
 
-		link, err := store.CreateLink(data.URL, user.Username)
+		link, err := store.CreateLink(c, data.URL, user.Username)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
 
-		slug := codec.IntToStr(int(link.ID))
+		slug := codec.Encode(int(link.ID))
 		if slug == "private" {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "please try again"})
 			return
 		}
 
 		c.JSON(http.StatusCreated, gin.H{
-			"short_url": fmt.Sprintf("%s/%s", utils.GetBaseURL(conf), slug),
+			"short_url": fmt.Sprintf("%s/%s", GetBaseURL(conf), slug),
 		})
 	}
 }
 
-func LinkDeleteHandler(store database.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
+func LinkDeleteHandler(store db.Store, codec *intstrcodec.Codec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.Param("slug")
 		if slug == "" || slug == "favicon.ico" {
@@ -138,15 +137,15 @@ func LinkDeleteHandler(store database.Store, codec *intstrcodec.Codec) gin.Handl
 			return
 		}
 
-		decodedID := codec.StrToInt(slug)
+		decodedID := codec.Decode(slug)
 
-		link, err := store.RetrieveLink(uint(decodedID))
+		link, err := store.RetrieveLink(c, uint(decodedID))
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
-		if err := store.DeleteLink(link.ID); err != nil {
+		if err := store.DeleteLink(c, link.ID); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete"})
 			return
 		}
