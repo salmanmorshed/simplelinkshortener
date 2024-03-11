@@ -69,9 +69,6 @@ watch(offset, fetchLinks, { immediate: true });
 </template>
 
 <style scoped>
-article {
-    margin-top: 0.75rem;
-}
 article > footer > a {
     text-decoration: none;
     padding: 0.3rem 0.7rem;

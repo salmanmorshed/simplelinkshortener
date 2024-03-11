@@ -8,7 +8,7 @@ export default defineConfig({
         viteSingleFile()
     ],
     build: {
-        outDir: "../internal/server/web",
+        outDir: "../internal/web/static",
         emptyOutDir: true,
     },
 });

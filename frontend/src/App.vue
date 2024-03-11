@@ -4,6 +4,7 @@ import History from "./History.vue";
 
 <template>
     <main class="container-fluid">
+        <br>
         <History />
     </main>
 </template>
