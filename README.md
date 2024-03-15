@@ -53,7 +53,7 @@ HTTP/1.1 201 Created
 Content-Type: application/json
 
 {
-  "short_url": "http://your-shortener-domain.xyz/abcde"
+  "short_url": "https://short.dev/abcde"
 }
 ```
 
@@ -80,15 +80,16 @@ Content-Type: application/json
 {
   "results": [
     {
-      "slug": "abcde",
+      "id": "abcde",
       "url": "https://example.com",
       "visits": 5,
       "created_at": "2023-04-20T06:09:00Z"
-    },
+    }
   ],
   "total": 1,
   "limit": 10,
-  "offset": 0
+  "offset": 0,
+  "prefix": "https://short.dev"
 }
 ```
 
@@ -98,8 +99,3 @@ A work-in-progress frontend app is served on `/web`. You can use it to create or
 
 ## License
 This project is licensed under the [MIT License](https://github.com/git/git-scm.com/blob/main/MIT-LICENSE.txt). The MIT License is a permissive open-source license that allows you to freely use, modify, and distribute this software for both commercial and non-commercial purposes, provided you include the original copyright notice and disclaimer. Feel free to explore, contribute, and build upon this project with confidence under the terms of the MIT License.
-
-
-
-
-

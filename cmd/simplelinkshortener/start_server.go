@@ -2,18 +2,19 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/urfave/cli/v2"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/web"
 )
 
 func startServerHandler(CLICtx *cli.Context) error {
-	app, err := newAppFromCLI(CLICtx)
+	app, err := getApp(CLICtx)
 	if err != nil {
 		return err
 	}
 
-	router := web.CreateRouter(app.Conf, app.Store, app.Codec)
+	router := web.SetupRouter(app)
 
 	if app.Conf.Server.UseTLS {
 		err = router.RunTLS(

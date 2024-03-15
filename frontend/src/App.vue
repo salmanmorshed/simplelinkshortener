@@ -4,7 +4,12 @@ import History from "./History.vue";
 
 <template>
     <main class="container-fluid">
-        <br>
         <History />
     </main>
 </template>
+
+<style scoped>
+main {
+    margin-top: 1rem;
+}
+</style>

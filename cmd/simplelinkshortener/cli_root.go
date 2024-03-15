@@ -1,43 +1,19 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
-
-	"github.com/salmanmorshed/intstrcodec"
-	"github.com/urfave/cli/v2"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal"
-	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
-	"github.com/salmanmorshed/simplelinkshortener/internal/db"
+	"github.com/urfave/cli/v2"
 )
 
 var Aborted = errors.New("aborted")
-
-func newAppFromCLI(CLICtx *cli.Context) (*internal.App, error) {
-	conf, err := cfg.LoadConfigFromFile(CLICtx.Value("config").(string))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
-
-	codec, err := intstrcodec.New(conf.Codec.Alphabet, conf.Codec.BlockSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize codec: %w", err)
-	}
-
-	store, err := db.NewPgStore(conf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize store: %w", err)
-	}
-	go store.Close(CLICtx.Context)
-
-	return &internal.App{
-		Conf:  conf,
-		Codec: codec,
-		Store: store,
-	}, nil
-}
 
 func main() {
 	CLIApp := &cli.App{
@@ -86,11 +62,34 @@ func main() {
 		HideHelpCommand: true,
 	}
 
-	err := CLIApp.Run(os.Args)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sigintCh := make(chan os.Signal, 1)
+	signal.Notify(sigintCh, syscall.SIGINT)
+	go func() {
+		<-sigintCh
+		fmt.Println("cleaning up...")
+		cancel()
+
+		// wait for database and cache backend to cleanly close
+		// todo: implement proper signaling instead of sleep
+		time.Sleep(time.Second)
+
+		os.Exit(0)
+	}()
+
+	err := CLIApp.RunContext(ctx, os.Args)
 	if err != nil {
 		fmt.Println(err)
 		if !errors.Is(err, Aborted) {
 			os.Exit(1)
 		}
 	}
+}
+
+func getApp(CLICtx *cli.Context) (*internal.App, error) {
+	return internal.BootstrapApp(
+		CLICtx.Context,
+		CLICtx.Value("config").(string),
+	)
 }

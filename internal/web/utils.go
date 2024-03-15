@@ -1,11 +1,14 @@
-package handlers
+package web
 
 import (
 	"fmt"
 	"net/url"
+	"slices"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 )
+
+var badLinkIDs = []string{"", "api", "web", "favicon.ico"}
 
 func GetBaseURL(conf *cfg.Config) string {
 	if conf.URLPrefix != "" {
@@ -41,4 +44,8 @@ func CheckURLValidity(rawURL string) bool {
 	}
 
 	return true
+}
+
+func IsBadLinkID(encodedID string) bool {
+	return slices.Contains(badLinkIDs, encodedID)
 }

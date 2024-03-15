@@ -1,46 +1,42 @@
 package web
 
 import (
-	"embed"
-	"strings"
+	"io/fs"
+	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/salmanmorshed/intstrcodec"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal"
-	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
-	"github.com/salmanmorshed/simplelinkshortener/internal/db"
-	"github.com/salmanmorshed/simplelinkshortener/internal/web/handlers"
 )
 
-//go:embed static/*
-var efs embed.FS
-
-func CreateRouter(conf *cfg.Config, store db.Store, codec *intstrcodec.Codec) *gin.Engine {
-	if strings.HasPrefix(internal.Version, "v") {
+func SetupRouter(app *internal.App) *gin.Engine {
+	var static fs.FS
+	if app.Debug {
+		static = os.DirFS("internal/web")
+	} else {
+		static = efs
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.Default()
-	router.Use(CORSMiddleware(conf))
+	router.Use(CORSMiddleware(app))
 
-	router.GET("/", handlers.HomePageHandler(conf))
-	router.GET("/:slug", handlers.OpenShortLinkHandler(store, codec))
+	router.GET("/", OpenHomePage(app))
+	router.GET("/:id", OpenShortLink(app))
+	router.GET("/web", BasicAuthMiddleware(app), ServeStaticFile(static, "static/index.html"))
 
-	router.GET("/web", BasicAuthMiddleware(store), handlers.EmbeddedWebpageHandler(efs, "static/index.html"))
+	api := router.Group("/api", BasicAuthMiddleware(app))
+	api.GET("/links", LinkList(app))
+	api.POST("/links", LinkCreate(app))
+	api.GET("/links/:id", LinkDetails(app))
+	api.DELETE("/links/:id", LinkDelete(app))
 
-	api := router.Group("/api", BasicAuthMiddleware(store))
-	api.GET("/links", handlers.LinkListHandler(store, codec))
-	api.POST("/links", handlers.LinkCreateHandler(conf, store, codec))
-	api.GET("/links/:slug", handlers.LinkDetailsHandler(store, codec))
-	api.DELETE("/links/:slug", handlers.LinkDeleteHandler(store, codec))
-
-	apiAdmin := api.Group("", AdminFilterMiddleware())
-	apiAdmin.GET("/users", handlers.UserListHandler(store))
-	apiAdmin.POST("/users", handlers.UserCreateHandler(store))
-	apiAdmin.GET("/users/:username", handlers.UserDetailsEditHandler(store))
-	apiAdmin.PATCH("/users/:username", handlers.UserDetailsEditHandler(store))
-	apiAdmin.DELETE("/users/:username", handlers.UserDeleteHandler(store))
+	apiAdmin := api.Group("", AdminFilterMiddleware(app))
+	apiAdmin.GET("/users", UserList(app))
+	apiAdmin.POST("/users", UserCreate(app))
+	apiAdmin.GET("/users/:username", UserDetailsOrEdit(app))
+	apiAdmin.PATCH("/users/:username", UserDetailsOrEdit(app))
+	apiAdmin.DELETE("/users/:username", UserDelete(app))
 
 	return router
 }

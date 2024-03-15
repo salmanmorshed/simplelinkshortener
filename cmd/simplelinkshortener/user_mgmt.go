@@ -11,7 +11,7 @@ import (
 )
 
 func addUserHandler(CLICtx *cli.Context) error {
-	app, err := newAppFromCLI(CLICtx)
+	app, err := getApp(CLICtx)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func modifyUserHandler(CLICtx *cli.Context) error {
 
 	ctx := CLICtx.Context
 
-	app, err := newAppFromCLI(CLICtx)
+	app, err := getApp(CLICtx)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func deleteUserHandler(CLICtx *cli.Context) error {
 
 	ctx := CLICtx.Context
 
-	app, err := newAppFromCLI(CLICtx)
+	app, err := getApp(CLICtx)
 	if err != nil {
 		return err
 	}

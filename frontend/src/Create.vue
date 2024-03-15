@@ -31,10 +31,8 @@ watch(open, val => {
     <dialog :open="open">
         <article>
             <header>
-                <button aria-label="Close" rel="prev" @click.prevent="open = false"></button>
-                <p>
-                    <strong>Create a new short link</strong>
-                </p>
+                <button aria-label="Close" rel="prev" @click.prevent="open = false" />
+                <h6>Create a new short link</h6>
             </header>
             <form @submit.prevent="createLink()">
                 <input
@@ -54,10 +52,13 @@ watch(open, val => {
 </template>
 
 <style scoped>
+dialog > article > header > button[aria-label=Close] {
+    margin-top: 0.15rem;
+}
 dialog > article > footer {
     text-align: left;
 }
-footer > a {
+dialog > article > footer > a {
     margin-right: 0.5rem;
 }
 </style>

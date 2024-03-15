@@ -1,5 +1,5 @@
 export type Link = {
-    slug: string;
+    id: string;
     url: string;
     visits: string;
     created_at: string;

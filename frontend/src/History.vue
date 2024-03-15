@@ -36,24 +36,26 @@ watch(offset, fetchLinks, { immediate: true });
 <template>
     <article>
         <Create @closed="fetchLinks((offset = 0))" />
-        <table>
-            <thead>
-                <tr>
-                    <th>Slug</th>
-                    <th>Link</th>
-                    <th>Visits</th>
-                    <th>Created at</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="link in links" :key="link.slug">
-                    <td>{{ link.slug }}</td>
-                    <td>{{ link.url }}</td>
-                    <td>{{ link.visits }}</td>
-                    <td>{{ formatDateTime(link.created_at) }}</td>
-                </tr>
-            </tbody>
-        </table>
+        <div class="overflow-auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Link</th>
+                        <th>Visits</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="link in links" :key="link.id">
+                        <td>{{ link.id }}</td>
+                        <td>{{ link.url }}</td>
+                        <td>{{ link.visits }}</td>
+                        <td>{{ formatDateTime(link.created_at) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
         <footer>
             <a
                 href="#"

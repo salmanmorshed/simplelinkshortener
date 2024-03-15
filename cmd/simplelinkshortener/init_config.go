@@ -9,7 +9,7 @@ import (
 	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 )
 
-func initConfigHandler(c *cli.Context) error {
+func initConfigHandler(CLICtx *cli.Context) error {
 	var err error
 	var conf cfg.Config
 
@@ -178,7 +178,7 @@ func initConfigHandler(c *cli.Context) error {
 	conf.Codec.BlockSize = 24
 	conf.Codec.MinLength = 5
 
-	configPath := c.Value("config").(string)
+	configPath := CLICtx.Value("config").(string)
 	if err2 := cfg.WriteConfigToFile(configPath, &conf); err2 != nil {
 		return fmt.Errorf("failed to initialize config: %w", err2)
 	}

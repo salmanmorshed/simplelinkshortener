@@ -1,8 +1,6 @@
 package cfg
 
-import (
-	"math/rand"
-)
+import "math/rand"
 
 func CreateRandomAlphabet() string {
 	runes := []rune("abcdefghjkmnpqrstuvwxyz23456789")
