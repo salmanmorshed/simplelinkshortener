@@ -29,7 +29,7 @@ jobs:
             npm run build
 
       - name: Build backend
-        run: go build -ldflags "-X github.com/salmanmorshed/simplelinkshortener/internal.Version=${{ github.ref_name }}" -o bin/simplelinkshortener_linux_x64 ./cmd/simplelinkshortener
+        run: VERSION="${{ github.ref_name }}" make build
 
       - name: Create new release
         id: create_release
