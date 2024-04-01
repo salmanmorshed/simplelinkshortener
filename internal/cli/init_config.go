@@ -1,15 +1,14 @@
-package main
+package cli
 
 import (
 	"fmt"
 
 	"github.com/manifoldco/promptui"
-	"github.com/urfave/cli/v2"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 )
 
-func initConfigHandler(CLICtx *cli.Context) error {
+func InitializeConfigFile(cfgPath string) error {
 	var err error
 	var conf cfg.Config
 
@@ -19,7 +18,7 @@ func initConfigHandler(CLICtx *cli.Context) error {
 	}
 	_, conf.Database.Type, err = prompt1.Run()
 	if err != nil {
-		return Aborted
+		return ErrAborted
 	}
 
 	if conf.Database.Type == "sqlite3" {
@@ -109,7 +108,7 @@ func initConfigHandler(CLICtx *cli.Context) error {
 	}
 	_, useRP, err = prompt7.Run()
 	if err != nil {
-		return Aborted
+		return ErrAborted
 	}
 
 	prompt8 := promptui.Select{
@@ -118,7 +117,7 @@ func initConfigHandler(CLICtx *cli.Context) error {
 	}
 	_, useTLS, err = prompt8.Run()
 	if err != nil {
-		return Aborted
+		return ErrAborted
 	}
 
 	prompt9 := promptui.Prompt{
@@ -128,7 +127,7 @@ func initConfigHandler(CLICtx *cli.Context) error {
 	}
 	domain, err = prompt9.Run()
 	if err != nil {
-		return Aborted
+		return ErrAborted
 	}
 
 	if useRP == "no" {
@@ -176,13 +175,11 @@ func initConfigHandler(CLICtx *cli.Context) error {
 
 	conf.Codec.Alphabet = cfg.CreateRandomAlphabet()
 	conf.Codec.BlockSize = 24
-	conf.Codec.MinLength = 5
 
-	configPath := CLICtx.Value("config").(string)
-	if err2 := cfg.WriteConfigToFile(configPath, &conf); err2 != nil {
+	if err2 := cfg.WriteConfigToFile(cfgPath, &conf); err2 != nil {
 		return fmt.Errorf("failed to initialize config: %w", err2)
 	}
 
-	fmt.Println("Config file generated:", configPath)
+	fmt.Println("Config file generated:", cfgPath)
 	return nil
 }

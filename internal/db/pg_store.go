@@ -24,8 +24,7 @@ func NewPgStore(conf *cfg.Config) (Store, error) {
 	return PgStore{db}, nil
 }
 
-func (s PgStore) Close(ctx context.Context) {
-	<-ctx.Done()
+func (s PgStore) Close() {
 	if err := s.db.Close(); err != nil {
 		log.Println("failed to close db connection")
 	}

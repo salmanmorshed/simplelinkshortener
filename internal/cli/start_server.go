@@ -1,15 +1,14 @@
-package main
+package cli
 
 import (
+	"context"
 	"fmt"
-
-	"github.com/urfave/cli/v2"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/web"
 )
 
-func startServerHandler(CLICtx *cli.Context) error {
-	app, err := getApp(CLICtx)
+func StartServer(ctx context.Context, cfgPath string) error {
+	app, err := BootstrapApp(ctx, cfgPath)
 	if err != nil {
 		return err
 	}

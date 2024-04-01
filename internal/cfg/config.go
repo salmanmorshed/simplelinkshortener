@@ -15,7 +15,6 @@ type Config struct {
 	Codec struct {
 		Alphabet  string `yaml:"alphabet"`
 		BlockSize int    `yaml:"block_size"`
-		MinLength int    `yaml:"min_length"`
 	} `yaml:"codec"`
 
 	Database struct {

@@ -25,5 +25,5 @@ type LinkStore interface {
 type Store interface {
 	UserStore
 	LinkStore
-	Close(ctx context.Context)
+	Close()
 }

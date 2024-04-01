@@ -1,28 +1,36 @@
-package main
+package cli
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/manifoldco/promptui"
-	"github.com/urfave/cli/v2"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-func addUserHandler(CLICtx *cli.Context) error {
-	app, err := getApp(CLICtx)
+func AddUser(ctx context.Context, cfgPath string, username string) error {
+	var err error
+
+	app, err := BootstrapApp(ctx, cfgPath)
 	if err != nil {
 		return err
 	}
 
-	prompt1 := promptui.Prompt{
-		Label:    "Username",
-		Validate: db.CheckUsernameValidity,
-	}
-	username, err1 := prompt1.Run()
-	if err1 != nil {
-		return Aborted
+	if username == "" {
+		prompt1 := promptui.Prompt{
+			Label:    "Username",
+			Validate: db.CheckUsernameValidity,
+		}
+		username, err = prompt1.Run()
+		if err != nil {
+			return ErrAborted
+		}
+	} else {
+		if err = db.CheckUsernameValidity(username); err != nil {
+			return err
+		}
+		fmt.Println("Username:", username)
 	}
 
 	prompt2 := promptui.Prompt{
@@ -30,12 +38,12 @@ func addUserHandler(CLICtx *cli.Context) error {
 		Validate: db.CheckPasswordStrengthValidity,
 		Mask:     '*',
 	}
-	password, err2 := prompt2.Run()
-	if err2 != nil {
-		return Aborted
+	password, err := prompt2.Run()
+	if err != nil {
+		return ErrAborted
 	}
 
-	newUser, err := app.Store.CreateUser(CLICtx.Context, username, password)
+	newUser, err := app.Store.CreateUser(ctx, username, password)
 	if err != nil {
 		return err
 	}
@@ -44,17 +52,20 @@ func addUserHandler(CLICtx *cli.Context) error {
 	return nil
 }
 
-func modifyUserHandler(CLICtx *cli.Context) error {
+func ModifyUser(ctx context.Context, cfgPath string, username string) error {
 	var err error
 
-	ctx := CLICtx.Context
-
-	app, err := getApp(CLICtx)
+	app, err := BootstrapApp(ctx, cfgPath)
 	if err != nil {
 		return err
 	}
 
-	user, err := displayUserSelection(ctx, app.Store, "Select user")
+	var user *db.User
+	if username == "" {
+		user, err = displayUserSelection(ctx, app.Store, "Select user to modify")
+	} else {
+		user, err = app.Store.RetrieveUser(ctx, username)
+	}
 	if err != nil {
 		return nil
 	}
@@ -72,7 +83,7 @@ func modifyUserHandler(CLICtx *cli.Context) error {
 	}
 	_, action, err := prompt1.Run()
 	if err != nil {
-		return Aborted
+		return ErrAborted
 	}
 
 	if action == "Change password" {
@@ -132,28 +143,31 @@ func modifyUserHandler(CLICtx *cli.Context) error {
 	return nil
 }
 
-func deleteUserHandler(CLICtx *cli.Context) error {
+func DeleteUser(ctx context.Context, cfgPath string, username string) error {
 	var err error
 
-	ctx := CLICtx.Context
-
-	app, err := getApp(CLICtx)
+	app, err := BootstrapApp(ctx, cfgPath)
 	if err != nil {
 		return err
 	}
 
-	user, err := displayUserSelection(ctx, app.Store, "Select user to delete")
+	var user *db.User
+	if username == "" {
+		user, err = displayUserSelection(ctx, app.Store, "Select user to delete")
+	} else {
+		user, err = app.Store.RetrieveUser(ctx, username)
+	}
 	if err != nil {
-		return nil
+		return err
 	}
 
 	prompt1 := promptui.Prompt{
-		Label:     fmt.Sprintf("Delete user: %s", user.Username),
+		Label:     fmt.Sprintf("Delete user %s", user.Username),
 		IsConfirm: true,
 	}
 	confirm, err := prompt1.Run()
 	if err != nil || (confirm != "y" && confirm != "Y") {
-		return Aborted
+		return ErrAborted
 	}
 
 	if err = app.Store.DeleteUser(ctx, user.Username); err != nil {
