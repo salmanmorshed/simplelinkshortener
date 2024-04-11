@@ -22,22 +22,21 @@ func SetupRouter(globalCtx context.Context, conf *cfg.Config, store db.Store, co
 		static = os.DirFS("internal/web")
 	}
 
+	handler := Handler{conf, store, codec}
+
 	router := gin.Default()
 
 	if conf.Server.UseCORS {
 		router.Use(CORSMiddleware(conf))
 	}
 
-	handler := Handler{conf, store, codec}
+	authed := BasicAuthMiddleware(store)
 
 	router.GET("/", handler.OpenHomePage())
-	router.GET("/:id", handler.OpenShortLink())
+	router.GET("/:id", handler.OpenShortLink(globalCtx))
+	router.GET("/web", authed, ServeStaticFile(static, "static/index.html"))
 
-	basicAuth := BasicAuthMiddleware(store)
-
-	router.GET("/web", basicAuth, ServeStaticFile(static, "static/index.html"))
-
-	api := router.Group("/api", basicAuth)
+	api := router.Group("/api", APIVersionMiddleware(), authed)
 	api.GET("/links", handler.LinkList())
 	api.POST("/links", handler.LinkCreate())
 	api.GET("/links/:id", handler.LinkDetails())

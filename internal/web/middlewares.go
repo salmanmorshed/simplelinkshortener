@@ -10,6 +10,14 @@ import (
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
+func APIVersionMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Api-Version", cfg.Version)
+
+		c.Next()
+	}
+}
+
 func CORSMiddleware(conf *cfg.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")

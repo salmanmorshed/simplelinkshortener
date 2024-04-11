@@ -30,7 +30,42 @@ func (h *Handler) OpenHomePage() gin.HandlerFunc {
 	}
 }
 
-func (h *Handler) OpenShortLink() gin.HandlerFunc {
+func (h *Handler) OpenShortLink(globalCtx context.Context) gin.HandlerFunc {
+	if !h.Conf.Server.UseCache {
+		return func(c *gin.Context) {
+			encodedID := c.Param("id")
+			if IsBadLinkID(encodedID) {
+				c.String(http.StatusNotFound, "Link not found")
+				return
+			}
+
+			decodedID := h.Codec.Decode(encodedID)
+			if decodedID <= 0 {
+				c.String(http.StatusNotFound, "Link not found")
+				return
+			}
+
+			link, err := h.Store.RetrieveLinkAndBumpVisits(c, uint(decodedID))
+			if err != nil {
+				c.String(http.StatusNotFound, "Link not found")
+				return
+			}
+
+			c.Redirect(http.StatusMovedPermanently, link.URL)
+		}
+	}
+
+	cache := NewCacheContext(
+		globalCtx,
+		h.Conf.Server.CacheCapacity,
+		func(page *Page) {
+			err := h.Store.IncrementVisits(context.Background(), page.LinkID, page.NewVisits)
+			if err == nil {
+				page.NewVisits = 0
+			}
+		},
+	)
+
 	return func(c *gin.Context) {
 		encodedID := c.Param("id")
 		if IsBadLinkID(encodedID) {
@@ -38,20 +73,27 @@ func (h *Handler) OpenShortLink() gin.HandlerFunc {
 			return
 		}
 
-		decodedID := h.Codec.Decode(encodedID)
-		if decodedID <= 0 {
-			c.String(http.StatusNotFound, "Link not found")
-			return
-		}
-
-		link, err := h.Store.RetrieveLinkAndBumpVisits(c, uint(decodedID))
+		url, err := cache.Resolve(
+			encodedID,
+			func(key string) (*db.Link, error) {
+				decodedID := h.Codec.Decode(encodedID)
+				if decodedID <= 0 {
+					return nil, fmt.Errorf("bad link")
+				}
+				return h.Store.RetrieveLink(c, uint(decodedID))
+			},
+			func(page *Page) {
+				page.NewVisits += 1
+			},
+		)
 		if err != nil {
 			c.String(http.StatusNotFound, "Link not found")
 			return
 		}
 
-		c.Redirect(http.StatusMovedPermanently, link.URL)
+		c.Redirect(http.StatusMovedPermanently, url)
 	}
+
 }
 
 func (h *Handler) LinkList() gin.HandlerFunc {
