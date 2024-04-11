@@ -18,12 +18,12 @@ func GetBaseURL(conf *cfg.Config) string {
 	portSuffix := ""
 	if conf.Server.UseTLS {
 		scheme = "https"
-		if conf.Server.Port != "443" {
-			portSuffix = fmt.Sprintf(":%s", conf.Server.Port)
+		if conf.Server.Port != 443 {
+			portSuffix = fmt.Sprintf(":%d", conf.Server.Port)
 		}
 	} else {
-		if conf.Server.Port != "80" {
-			portSuffix = fmt.Sprintf(":%s", conf.Server.Port)
+		if conf.Server.Port != 80 {
+			portSuffix = fmt.Sprintf(":%d", conf.Server.Port)
 		}
 	}
 	return fmt.Sprintf("%s://%s%s", scheme, conf.Server.Host, portSuffix)

@@ -8,6 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var Version = "devel"
+
 type Config struct {
 	URLPrefix    string `yaml:"url_prefix,omitempty"`
 	HomeRedirect string `yaml:"home_redirect,omitempty"`
@@ -20,7 +22,7 @@ type Config struct {
 	Database struct {
 		Type      string            `yaml:"type"`
 		Host      string            `yaml:"host,omitempty"`
-		Port      string            `yaml:"port,omitempty"`
+		Port      uint16            `yaml:"port,omitempty"`
 		Username  string            `yaml:"username,omitempty"`
 		Password  string            `yaml:"password,omitempty"`
 		Name      string            `yaml:"name,omitempty"`
@@ -29,7 +31,7 @@ type Config struct {
 
 	Server struct {
 		Host string `yaml:"host"`
-		Port string `yaml:"port"`
+		Port uint16 `yaml:"port"`
 
 		UseTLS         bool   `yaml:"use_tls"`
 		TLSCertificate string `yaml:"tls_certificate,omitempty"`
@@ -44,6 +46,8 @@ type Config struct {
 }
 
 func LoadConfigFromFile(configPath string) (*Config, error) {
+	var err error
+
 	cleanedConfigPath, err := filepath.Abs(filepath.Clean(configPath))
 	if err != nil {
 		return nil, err
@@ -57,14 +61,20 @@ func LoadConfigFromFile(configPath string) (*Config, error) {
 
 	var conf *Config
 	decoder := yaml.NewDecoder(file)
-	if err := decoder.Decode(&conf); err != nil {
+	if err = decoder.Decode(&conf); err != nil {
 		return nil, err
+	}
+
+	if err = validateConfigValues(conf); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	return conf, nil
 }
 
 func WriteConfigToFile(configPath string, conf *Config) error {
+	var err error
+
 	cleanedConfigPath, err := filepath.Abs(filepath.Clean(configPath))
 	if err != nil {
 		return err

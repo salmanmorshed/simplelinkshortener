@@ -66,7 +66,7 @@ func initPostgresOrSqliteDB(conf *cfg.Config) (*sqlx.DB, error) {
 
 func getPostgresConnectionURL(conf *cfg.Config) string {
 	url := fmt.Sprintf(
-		"%s://%s:%s@%s:%s/%s",
+		"%s://%s:%s@%s:%d/%s",
 		conf.Database.Type,
 		conf.Database.Username,
 		conf.Database.Password,

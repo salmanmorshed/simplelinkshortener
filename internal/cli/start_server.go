@@ -17,7 +17,7 @@ func StartServer(ctx context.Context, cfgPath string) error {
 
 	if app.Conf.Server.UseTLS {
 		err = router.RunTLS(
-			fmt.Sprintf("%s:%s", app.Conf.Server.Host, app.Conf.Server.Port),
+			fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port),
 			app.Conf.Server.TLSCertificate,
 			app.Conf.Server.TLSPrivateKey,
 		)

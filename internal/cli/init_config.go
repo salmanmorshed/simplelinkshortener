@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/manifoldco/promptui"
 
@@ -9,8 +10,10 @@ import (
 )
 
 func InitializeConfigFile(cfgPath string) error {
-	var err error
-	var conf cfg.Config
+	var (
+		err  error
+		conf cfg.Config
+	)
 
 	prompt1 := promptui.Select{
 		Label: "Choose database type",
@@ -24,13 +27,12 @@ func InitializeConfigFile(cfgPath string) error {
 	if conf.Database.Type == "sqlite3" {
 		prompt2 := promptui.Prompt{
 			Label:     "Path to sqlite file",
-			Default:   "./db.sqlite3",
+			Default:   "db.sqlite3",
 			AllowEdit: true,
 		}
 		conf.Database.Name, err = prompt2.Run()
 		if err != nil {
-			fmt.Println("aborted")
-			return nil
+			return ErrAborted
 		}
 	} else if conf.Database.Type == "postgresql" {
 		fmt.Println("Enter database connection details")
@@ -42,20 +44,26 @@ func InitializeConfigFile(cfgPath string) error {
 		}
 		conf.Database.Host, err = prompt2.Run()
 		if err != nil {
-			fmt.Println("aborted")
-			return nil
+			return ErrAborted
 		}
 
+		var (
+			PortStr string
+			PortVal uint64
+		)
 		prompt3 := promptui.Prompt{
 			Label:     "Port",
 			Default:   "5432",
 			AllowEdit: true,
 		}
-		conf.Database.Port, err = prompt3.Run()
+		PortStr, err = prompt3.Run()
 		if err != nil {
-			fmt.Println("aborted")
-			return nil
+			return ErrAborted
 		}
+		if PortVal, err = strconv.ParseUint(PortStr, 10, 16); err != nil {
+			return err
+		}
+		conf.Database.Port = uint16(PortVal)
 
 		prompt4 := promptui.Prompt{
 			Label:     "Username",
@@ -64,8 +72,7 @@ func InitializeConfigFile(cfgPath string) error {
 		}
 		conf.Database.Username, err = prompt4.Run()
 		if err != nil {
-			fmt.Println("aborted")
-			return nil
+			return ErrAborted
 		}
 
 		prompt5 := promptui.Prompt{
@@ -75,8 +82,7 @@ func InitializeConfigFile(cfgPath string) error {
 		}
 		conf.Database.Password, err = prompt5.Run()
 		if err != nil {
-			fmt.Println("aborted")
-			return nil
+			return ErrAborted
 		}
 
 		prompt6 := promptui.Prompt{
@@ -86,8 +92,7 @@ func InitializeConfigFile(cfgPath string) error {
 		}
 		conf.Database.Name, err = prompt6.Run()
 		if err != nil {
-			fmt.Println("aborted")
-			return nil
+			return ErrAborted
 		}
 
 		conf.Database.ExtraArgs = map[string]string{
@@ -98,15 +103,13 @@ func InitializeConfigFile(cfgPath string) error {
 		return fmt.Errorf("unsupported database type: %s", conf.Database.Type)
 	}
 
-	var useRP string
-	var useTLS string
-	var domain string
+	var useReverseProxy, useTLS, domain string
 
 	prompt7 := promptui.Select{
 		Label: "Will it run behind a reverse proxy?",
 		Items: []string{"no", "yes"},
 	}
-	_, useRP, err = prompt7.Run()
+	_, useReverseProxy, err = prompt7.Run()
 	if err != nil {
 		return ErrAborted
 	}
@@ -130,11 +133,11 @@ func InitializeConfigFile(cfgPath string) error {
 		return ErrAborted
 	}
 
-	if useRP == "no" {
+	if useReverseProxy == "no" {
 		conf.Server.UseTLS = useTLS == "yes"
 		conf.Server.Host = domain
 		if conf.Server.UseTLS {
-			conf.Server.Port = "443"
+			conf.Server.Port = 443
 
 			prompt10 := promptui.Prompt{
 				Label:     "Certificate",
@@ -143,8 +146,7 @@ func InitializeConfigFile(cfgPath string) error {
 			}
 			conf.Server.TLSCertificate, err = prompt10.Run()
 			if err != nil {
-				fmt.Println("aborted")
-				return nil
+				return ErrAborted
 			}
 
 			prompt11 := promptui.Prompt{
@@ -154,16 +156,15 @@ func InitializeConfigFile(cfgPath string) error {
 			}
 			conf.Server.TLSPrivateKey, err = prompt11.Run()
 			if err != nil {
-				fmt.Println("aborted")
-				return nil
+				return ErrAborted
 			}
 		} else {
-			conf.Server.Port = "80"
+			conf.Server.Port = 80
 		}
 	} else {
 		conf.Server.UseTLS = false
 		conf.Server.Host = "127.0.0.1"
-		conf.Server.Port = "8000"
+		conf.Server.Port = 8000
 		if conf.Server.UseTLS {
 			conf.URLPrefix = fmt.Sprintf("https://%s", domain)
 		} else {
@@ -174,10 +175,10 @@ func InitializeConfigFile(cfgPath string) error {
 	conf.HomeRedirect = "/web"
 
 	conf.Codec.Alphabet = cfg.CreateRandomAlphabet()
-	conf.Codec.BlockSize = 24
+	conf.Codec.BlockSize = 20
 
-	if err2 := cfg.WriteConfigToFile(cfgPath, &conf); err2 != nil {
-		return fmt.Errorf("failed to initialize config: %w", err2)
+	if err = cfg.WriteConfigToFile(cfgPath, &conf); err != nil {
+		return fmt.Errorf("failed to save config file: %w", err)
 	}
 
 	fmt.Println("Config file generated:", cfgPath)
