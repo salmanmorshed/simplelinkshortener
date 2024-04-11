@@ -6,16 +6,23 @@ import (
 
 	"github.com/manifoldco/promptui"
 
+	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
 func AddUser(ctx context.Context, cfgPath string, username string) error {
 	var err error
 
-	app, err := BootstrapApp(ctx, cfgPath)
+	conf, err := cfg.LoadConfigFromFile(cfgPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load config: %w", err)
 	}
+
+	store, err := db.NewPgStore(conf)
+	if err != nil {
+		return fmt.Errorf("failed to initialize store: %w", err)
+	}
+	defer store.Close()
 
 	if username == "" {
 		prompt1 := promptui.Prompt{
@@ -43,7 +50,7 @@ func AddUser(ctx context.Context, cfgPath string, username string) error {
 		return ErrAborted
 	}
 
-	newUser, err := app.Store.CreateUser(ctx, username, password)
+	newUser, err := store.CreateUser(ctx, username, password)
 	if err != nil {
 		return err
 	}
@@ -55,16 +62,22 @@ func AddUser(ctx context.Context, cfgPath string, username string) error {
 func ModifyUser(ctx context.Context, cfgPath string, username string) error {
 	var err error
 
-	app, err := BootstrapApp(ctx, cfgPath)
+	conf, err := cfg.LoadConfigFromFile(cfgPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load config: %w", err)
 	}
+
+	store, err := db.NewPgStore(conf)
+	if err != nil {
+		return fmt.Errorf("failed to initialize store: %w", err)
+	}
+	defer store.Close()
 
 	var user *db.User
 	if username == "" {
-		user, err = displayUserSelection(ctx, app.Store, "Select user to modify")
+		user, err = showUserSelection(ctx, store, "Select user to modify")
 	} else {
-		user, err = app.Store.RetrieveUser(ctx, username)
+		user, err = store.RetrieveUser(ctx, username)
 	}
 	if err != nil {
 		return nil
@@ -98,7 +111,7 @@ func ModifyUser(ctx context.Context, cfgPath string, username string) error {
 			return nil
 		}
 
-		if err = app.Store.UpdatePassword(ctx, user.Username, newPassword); err != nil {
+		if err = store.UpdatePassword(ctx, user.Username, newPassword); err != nil {
 			return err
 		}
 
@@ -117,7 +130,7 @@ func ModifyUser(ctx context.Context, cfgPath string, username string) error {
 		}
 
 		oldUsername := user.Username
-		if err := app.Store.UpdateUsername(ctx, user.Username, newUsername); err != nil {
+		if err := store.UpdateUsername(ctx, user.Username, newUsername); err != nil {
 			return err
 		}
 
@@ -133,7 +146,7 @@ func ModifyUser(ctx context.Context, cfgPath string, username string) error {
 			return nil
 		}
 
-		if err := app.Store.ToggleAdmin(ctx, user.Username); err != nil {
+		if err := store.ToggleAdmin(ctx, user.Username); err != nil {
 			return err
 		}
 
@@ -146,16 +159,22 @@ func ModifyUser(ctx context.Context, cfgPath string, username string) error {
 func DeleteUser(ctx context.Context, cfgPath string, username string) error {
 	var err error
 
-	app, err := BootstrapApp(ctx, cfgPath)
+	conf, err := cfg.LoadConfigFromFile(cfgPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load config: %w", err)
 	}
+
+	store, err := db.NewPgStore(conf)
+	if err != nil {
+		return fmt.Errorf("failed to initialize store: %w", err)
+	}
+	defer store.Close()
 
 	var user *db.User
 	if username == "" {
-		user, err = displayUserSelection(ctx, app.Store, "Select user to delete")
+		user, err = showUserSelection(ctx, store, "Select user to delete")
 	} else {
-		user, err = app.Store.RetrieveUser(ctx, username)
+		user, err = store.RetrieveUser(ctx, username)
 	}
 	if err != nil {
 		return err
@@ -170,39 +189,11 @@ func DeleteUser(ctx context.Context, cfgPath string, username string) error {
 		return ErrAborted
 	}
 
-	if err = app.Store.DeleteUser(ctx, user.Username); err != nil {
+	if err = store.DeleteUser(ctx, user.Username); err != nil {
 		return fmt.Errorf("failed to delete user %s", user.Username)
 	}
 
 	fmt.Println("Deleted user", user.Username)
 
 	return nil
-}
-
-func displayUserSelection(ctx context.Context, store db.Store, prompt string) (*db.User, error) {
-	users, err := store.RetrieveAllUsers(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch users")
-	}
-
-	usernames := make([]string, len(users))
-	for idx, user := range users {
-		usernames[idx] = user.Username
-	}
-
-	prompt1 := promptui.Select{
-		Label: prompt,
-		Items: usernames,
-	}
-	_, username, err := prompt1.Run()
-	if err != nil {
-		return nil, fmt.Errorf("user selection failed")
-	}
-
-	user, err := store.RetrieveUser(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find user %s", username)
-	}
-
-	return user, nil
 }

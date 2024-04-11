@@ -1,42 +1,54 @@
 package web
 
 import (
+	"context"
 	"io/fs"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/salmanmorshed/intstrcodec"
 
-	"github.com/salmanmorshed/simplelinkshortener/internal"
+	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
+	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-func SetupRouter(app *internal.App) *gin.Engine {
+func SetupRouter(globalCtx context.Context, conf *cfg.Config, store db.Store, codec *intstrcodec.Codec) *gin.Engine {
 	var static fs.FS
-	if app.Debug {
-		static = os.DirFS("internal/web")
-	} else {
+	if strings.HasPrefix(cfg.Version, "v") {
 		static = efs
 		gin.SetMode(gin.ReleaseMode)
+	} else {
+		static = os.DirFS("internal/web")
 	}
 
 	router := gin.Default()
-	router.Use(CORSMiddleware(app))
 
-	router.GET("/", OpenHomePage(app))
-	router.GET("/:id", OpenShortLink(app))
-	router.GET("/web", BasicAuthMiddleware(app), ServeStaticFile(static, "static/index.html"))
+	if conf.Server.UseCORS {
+		router.Use(CORSMiddleware(conf))
+	}
 
-	api := router.Group("/api", BasicAuthMiddleware(app))
-	api.GET("/links", LinkList(app))
-	api.POST("/links", LinkCreate(app))
-	api.GET("/links/:id", LinkDetails(app))
-	api.DELETE("/links/:id", LinkDelete(app))
+	handler := Handler{conf, store, codec}
 
-	apiAdmin := api.Group("", AdminFilterMiddleware(app))
-	apiAdmin.GET("/users", UserList(app))
-	apiAdmin.POST("/users", UserCreate(app))
-	apiAdmin.GET("/users/:username", UserDetailsOrEdit(app))
-	apiAdmin.PATCH("/users/:username", UserDetailsOrEdit(app))
-	apiAdmin.DELETE("/users/:username", UserDelete(app))
+	router.GET("/", handler.OpenHomePage())
+	router.GET("/:id", handler.OpenShortLink())
+
+	basicAuth := BasicAuthMiddleware(store)
+
+	router.GET("/web", basicAuth, ServeStaticFile(static, "static/index.html"))
+
+	api := router.Group("/api", basicAuth)
+	api.GET("/links", handler.LinkList())
+	api.POST("/links", handler.LinkCreate())
+	api.GET("/links/:id", handler.LinkDetails())
+	api.DELETE("/links/:id", handler.LinkDelete())
+
+	apiAdmin := api.Group("", AdminFilterMiddleware())
+	apiAdmin.GET("/users", handler.UserList())
+	apiAdmin.POST("/users", handler.UserCreate())
+	apiAdmin.GET("/users/:username", handler.UserDetailsOrEdit())
+	apiAdmin.PATCH("/users/:username", handler.UserDetailsOrEdit())
+	apiAdmin.DELETE("/users/:username", handler.UserDelete())
 
 	return router
 }

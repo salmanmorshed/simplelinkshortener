@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
+	"sync"
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
@@ -24,10 +25,22 @@ func NewPgStore(conf *cfg.Config) (Store, error) {
 	return PgStore{db}, nil
 }
 
-func (s PgStore) Close() {
-	if err := s.db.Close(); err != nil {
-		log.Println("failed to close db connection")
+func NewPgStoreContext(ctx context.Context, conf *cfg.Config) (Store, error) {
+	store, err := NewPgStore(conf)
+	if err != nil {
+		return nil, err
 	}
+
+	if wg, ok := ctx.Value("ExitWG").(*sync.WaitGroup); ok {
+		wg.Add(1)
+		go func() {
+			<-ctx.Done()
+			store.Close()
+			wg.Done()
+		}()
+	}
+
+	return store, nil
 }
 
 func (s PgStore) CreateUser(ctx context.Context, username string, password string) (*User, error) {
@@ -143,7 +156,7 @@ func (s PgStore) IncrementVisits(ctx context.Context, id uint, count uint) error
 		return errors.New("failed to increment visits")
 	}
 	if a, err := r.RowsAffected(); err != nil || a != 1 {
-		log.Printf("failed to increment visits: ID=%d, count=%d, RowsAffected=%d", id, count, a)
+		slog.Warn(fmt.Sprintf("failed to increment visits: ID=%d, count=%d, RowsAffected=%d", id, count, a))
 	}
 	return nil
 }
@@ -180,4 +193,10 @@ func (s PgStore) RetrieveLinksForUser(ctx context.Context, username string, limi
 		return nil, fmt.Errorf("failed to fetch links")
 	}
 	return links, nil
+}
+
+func (s PgStore) Close() {
+	if err := s.db.Close(); err != nil {
+		slog.Warn("failed to close database connection")
+	}
 }

@@ -11,22 +11,23 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/salmanmorshed/simplelinkshortener/internal"
-	cliHandlers "github.com/salmanmorshed/simplelinkshortener/internal/cli"
+	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
+	cliActions "github.com/salmanmorshed/simplelinkshortener/internal/cli"
 )
 
 func main() {
-	CLIApp := &cli.App{
+	app := &cli.App{
 		Usage:     "Create a personal link shortening service",
 		ArgsUsage: " ",
-		Version:   internal.Version,
+		Version:   cfg.Version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "config",
-				Value: "config.yaml",
+				Value: "config.yml",
 				Usage: "path to config file",
 			},
 		},
+		HideHelpCommand: true,
 		Commands: []*cli.Command{
 			{
 				Name:     "init",
@@ -34,7 +35,7 @@ func main() {
 				Category: "Configuration",
 				Action: func(c *cli.Context) error {
 					cfgPath := c.Value("config").(string)
-					return cliHandlers.InitializeConfigFile(cfgPath)
+					return cliActions.InitializeConfigFile(cfgPath)
 				},
 			},
 			{
@@ -43,7 +44,7 @@ func main() {
 				Category: "Server",
 				Action: func(c *cli.Context) error {
 					cfgPath := c.Value("config").(string)
-					return cliHandlers.StartServer(c.Context, cfgPath)
+					return cliActions.StartServer(c.Context, cfgPath)
 				},
 			},
 			{
@@ -53,17 +54,17 @@ func main() {
 				Action: func(c *cli.Context) error {
 					cfgPath := c.Value("config").(string)
 					username := c.Args().First()
-					return cliHandlers.AddUser(c.Context, cfgPath, username)
+					return cliActions.AddUser(c.Context, cfgPath, username)
 				},
 			},
 			{
 				Name:     "usermod",
-				Usage:    "Modify username or password",
+				Usage:    "Modify user details",
 				Category: "User management",
 				Action: func(c *cli.Context) error {
 					cfgPath := c.Value("config").(string)
 					username := c.Args().First()
-					return cliHandlers.ModifyUser(c.Context, cfgPath, username)
+					return cliActions.ModifyUser(c.Context, cfgPath, username)
 				},
 			},
 			{
@@ -73,31 +74,32 @@ func main() {
 				Action: func(c *cli.Context) error {
 					cfgPath := c.Value("config").(string)
 					username := c.Args().First()
-					return cliHandlers.DeleteUser(c.Context, cfgPath, username)
+					return cliActions.DeleteUser(c.Context, cfgPath, username)
 				},
 			},
 		},
-		HideHelpCommand: true,
 	}
 
 	var wg sync.WaitGroup
-	ctx := context.WithValue(context.Background(), internal.CtxKey("wg"), &wg)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "ExitWG", &wg)
 	ctx, cancel := context.WithCancel(ctx)
 
 	sigintCh := make(chan os.Signal, 1)
 	signal.Notify(sigintCh, syscall.SIGINT)
+
 	go func() {
 		<-sigintCh
-		fmt.Println("\nCleaning up...")
 		cancel()
+		fmt.Printf("\nWarm shutdown. Please wait...\n")
 		wg.Wait()
 		os.Exit(0)
 	}()
 
-	err := CLIApp.RunContext(ctx, os.Args)
+	err := app.RunContext(ctx, os.Args)
 	if err != nil {
 		fmt.Println(err)
-		if !errors.Is(err, cliHandlers.ErrAborted) {
+		if !errors.Is(err, cliActions.ErrAborted) {
 			os.Exit(1)
 		}
 	}

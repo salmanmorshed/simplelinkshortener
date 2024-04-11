@@ -4,25 +4,39 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/salmanmorshed/intstrcodec"
+
+	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
+	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 	"github.com/salmanmorshed/simplelinkshortener/internal/web"
 )
 
 func StartServer(ctx context.Context, cfgPath string) error {
-	app, err := BootstrapApp(ctx, cfgPath)
+	conf, err := cfg.LoadConfigFromFile(cfgPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	router := web.SetupRouter(app)
+	store, err := db.NewPgStoreContext(ctx, conf)
+	if err != nil {
+		return fmt.Errorf("failed to initialize store: %w", err)
+	}
 
-	if app.Conf.Server.UseTLS {
+	codec, err := intstrcodec.New(conf.Codec.Alphabet, conf.Codec.BlockSize)
+	if err != nil {
+		return fmt.Errorf("failed to initialize codec: %w", err)
+	}
+
+	router := web.SetupRouter(ctx, conf, store, codec)
+
+	if conf.Server.UseTLS {
 		err = router.RunTLS(
 			fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port),
-			app.Conf.Server.TLSCertificate,
-			app.Conf.Server.TLSPrivateKey,
+			conf.Server.TLSCertificate,
+			conf.Server.TLSPrivateKey,
 		)
 	} else {
-		err = router.Run(fmt.Sprintf("%s:%s", app.Conf.Server.Host, app.Conf.Server.Port))
+		err = router.Run(fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port))
 	}
 	if err != nil {
 		return fmt.Errorf("failed to start server: %w", err)

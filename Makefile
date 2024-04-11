@@ -1,7 +1,7 @@
 .PHONY: build
 
 VERSION ?= devel
-BUILD_FLAGS := -ldflags "-X github.com/salmanmorshed/simplelinkshortener/internal.Version=$(VERSION)"
+BUILD_FLAGS := -ldflags "-X github.com/salmanmorshed/simplelinkshortener/internal/cfg.Version=$(VERSION)"
 OUTPUT_BIN := bin/simplelinkshortener
 
 build:

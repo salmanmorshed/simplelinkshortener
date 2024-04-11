@@ -4,47 +4,38 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-	"sync"
 
-	"github.com/salmanmorshed/intstrcodec"
+	"github.com/manifoldco/promptui"
 
-	"github.com/salmanmorshed/simplelinkshortener/internal"
-	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
 var ErrAborted = errors.New("aborted")
 
-func BootstrapApp(ctx context.Context, configPath string) (*internal.App, error) {
-	wg := ctx.Value(internal.CtxKey("wg")).(*sync.WaitGroup)
-
-	conf, err := cfg.LoadConfigFromFile(configPath)
+func showUserSelection(ctx context.Context, store db.Store, prompt string) (*db.User, error) {
+	users, err := store.RetrieveAllUsers(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
+		return nil, fmt.Errorf("failed to fetch users")
 	}
 
-	codec, err := intstrcodec.New(conf.Codec.Alphabet, conf.Codec.BlockSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize codec: %w", err)
+	usernames := make([]string, len(users))
+	for idx, user := range users {
+		usernames[idx] = user.Username
 	}
 
-	store, err := db.NewPgStore(conf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize store: %w", err)
+	prompt1 := promptui.Select{
+		Label: prompt,
+		Items: usernames,
 	}
-	wg.Add(1)
+	_, username, err := prompt1.Run()
+	if err != nil {
+		return nil, fmt.Errorf("user selection failed")
+	}
 
-	go func() {
-		<-ctx.Done()
-		store.Close()
-		wg.Done()
-	}()
+	user, err := store.RetrieveUser(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user %s", username)
+	}
 
-	return &internal.App{
-		Conf:  conf,
-		Codec: codec,
-		Store: store,
-		Debug: !strings.HasPrefix(internal.Version, "v"),
-	}, nil
+	return user, nil
 }

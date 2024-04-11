@@ -6,14 +6,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/salmanmorshed/simplelinkshortener/internal"
+	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-func CORSMiddleware(app *internal.App) gin.HandlerFunc {
+func CORSMiddleware(conf *cfg.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		if app.Conf.Server.UseCORS && origin != "" && slices.Contains(app.Conf.Server.CORSOrigins, origin) {
+		if origin != "" && slices.Contains(conf.Server.CORSOrigins, origin) {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
@@ -26,13 +26,11 @@ func CORSMiddleware(app *internal.App) gin.HandlerFunc {
 			}
 		}
 
-		c.Header("X-API-Version", internal.Version)
-
 		c.Next()
 	}
 }
 
-func BasicAuthMiddleware(app *internal.App) gin.HandlerFunc {
+func BasicAuthMiddleware(store db.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		username, password, hasAuth := c.Request.BasicAuth()
 
@@ -42,7 +40,7 @@ func BasicAuthMiddleware(app *internal.App) gin.HandlerFunc {
 			return
 		}
 
-		user, err := app.Store.RetrieveUser(c, username)
+		user, err := store.RetrieveUser(c, username)
 		if err != nil || !db.VerifyPassword(user.Password, password) {
 			c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "incorrect username and/or password"})
@@ -55,11 +53,11 @@ func BasicAuthMiddleware(app *internal.App) gin.HandlerFunc {
 	}
 }
 
-func AdminFilterMiddleware(_ *internal.App) gin.HandlerFunc {
+func AdminFilterMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user := c.MustGet("user").(*db.User)
+		user, ok := c.MustGet("user").(*db.User)
 
-		if !user.IsAdmin {
+		if !ok || !user.IsAdmin {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "user is not admin"})
 			return
 		}
