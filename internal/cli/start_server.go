@@ -17,7 +17,7 @@ func StartServer(ctx context.Context, cfgPath string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	store, err := db.NewPgStoreContext(ctx, conf)
+	store, err := db.NewStoreContext(ctx, conf)
 	if err != nil {
 		return fmt.Errorf("failed to initialize store: %w", err)
 	}

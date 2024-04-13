@@ -1,0 +1,22 @@
+package db
+
+const sqliteSetupSQL = `
+CREATE TABLE IF NOT EXISTS users (
+	username TEXT PRIMARY KEY NOT NULL,
+	password TEXT NOT NULL,
+	is_admin INTEGER DEFAULT 0 NOT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+CREATE TABLE IF NOT EXISTS links (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	url TEXT NOT NULL,
+	visits INTEGER DEFAULT 0 NOT NULL,
+	created_by TEXT NOT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	FOREIGN KEY (created_by) REFERENCES users(username)
+);
+`
+
+type SqliteStore struct {
+	PostgresStore
+}

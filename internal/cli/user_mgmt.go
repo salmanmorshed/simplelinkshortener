@@ -18,7 +18,7 @@ func AddUser(ctx context.Context, cfgPath string, username string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	store, err := db.NewPgStore(conf)
+	store, err := db.NewStore(conf)
 	if err != nil {
 		return fmt.Errorf("failed to initialize store: %w", err)
 	}
@@ -67,7 +67,7 @@ func ModifyUser(ctx context.Context, cfgPath string, username string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	store, err := db.NewPgStore(conf)
+	store, err := db.NewStore(conf)
 	if err != nil {
 		return fmt.Errorf("failed to initialize store: %w", err)
 	}
@@ -164,7 +164,7 @@ func DeleteUser(ctx context.Context, cfgPath string, username string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	store, err := db.NewPgStore(conf)
+	store, err := db.NewStore(conf)
 	if err != nil {
 		return fmt.Errorf("failed to initialize store: %w", err)
 	}
