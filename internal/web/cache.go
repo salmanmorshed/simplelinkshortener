@@ -3,50 +3,57 @@ package web
 import (
 	"container/list"
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-const (
+var (
 	SyncInterval    = 10 * time.Second
 	CleanupInterval = 30 * time.Second
 )
 
-type ResolveFunc func(string) (*db.Link, error)
-type AugmentFunc func(*Page)
+type ResolveFunc func(context.Context, string) (*db.Link, error)
 type CohereFunc func(*Page)
 
 type Page struct {
-	sync.RWMutex
+	lruMarker *list.Element
 	LinkID    uint
 	LinkURL   string
 	NewVisits uint
-	lruMarker *list.Element
-}
-
-func (p *Page) isDirty() bool {
-	p.RLock()
-	defer p.RUnlock()
-	return p.NewVisits > 0
 }
 
 type Cache struct {
-	sync.RWMutex
 	capacity uint
-	backing  map[string]*Page
-	lruList  *list.List
-	cohereFn CohereFunc
+	resolver ResolveFunc
+	coherer  CohereFunc
+
+	backing map[string]*Page
+	lruList *list.List
+
+	lookupCh chan cacheLookup
 }
 
-func NewCache(capacity uint, cohere CohereFunc) *Cache {
+type cacheLookup struct {
+	key  string
+	ctx  context.Context
+	done chan cacheResult
+}
+
+type cacheResult struct {
+	url string
+	err error
+}
+
+func NewCache(capacity uint, resolver ResolveFunc, coherer CohereFunc) *Cache {
 	c := Cache{
 		capacity: capacity,
+		resolver: resolver,
+		coherer:  coherer,
 		backing:  make(map[string]*Page),
 		lruList:  list.New(),
-		cohereFn: cohere,
+		lookupCh: make(chan cacheLookup),
 	}
 
 	coherenceTicker := time.NewTicker(SyncInterval)
@@ -55,8 +62,12 @@ func NewCache(capacity uint, cohere CohereFunc) *Cache {
 	go func() {
 		for {
 			select {
+			case lookup := <-c.lookupCh:
+				c.handleLookup(lookup)
+
 			case <-coherenceTicker.C:
 				c.syncAllPages()
+
 			case <-evictionTicker.C:
 				c.evictOldPages()
 			}
@@ -66,8 +77,8 @@ func NewCache(capacity uint, cohere CohereFunc) *Cache {
 	return &c
 }
 
-func NewCacheContext(ctx context.Context, capacity uint, cohere CohereFunc) *Cache {
-	c := NewCache(capacity, cohere)
+func NewCacheContext(ctx context.Context, capacity uint, resolver ResolveFunc, coherer CohereFunc) *Cache {
+	c := NewCache(capacity, resolver, coherer)
 
 	if wg, ok := ctx.Value("ExitWG").(*sync.WaitGroup); ok {
 		wg.Add(1)
@@ -81,58 +92,55 @@ func NewCacheContext(ctx context.Context, capacity uint, cohere CohereFunc) *Cac
 	return c
 }
 
-func (c *Cache) Resolve(key string, resolve ResolveFunc, augment AugmentFunc) (string, error) {
-	c.RLock()
-	page, exists := c.backing[key]
-	if exists && page != nil {
-		page.Lock()
-		augment(page)
-		page.Unlock()
-		return page.LinkURL, nil
-	}
-	c.RUnlock()
+func (c *Cache) Lookup(ctx context.Context, key string) (string, error) {
+	lookup := cacheLookup{key, ctx, make(chan cacheResult)}
+	c.lookupCh <- lookup
+	result := <-lookup.done
+	return result.url, result.err
+}
 
-	link, err := resolve(key)
+func (c *Cache) handleLookup(lookup cacheLookup) {
+	if page, exists := c.backing[lookup.key]; exists && page != nil {
+		c.lruList.MoveToFront(page.lruMarker)
+		page.NewVisits += 1
+		lookup.done <- cacheResult{page.LinkURL, nil}
+		close(lookup.done)
+		return
+	}
+
+	link, err := c.resolver(lookup.ctx, lookup.key)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve link %v: %v", key, err)
+		lookup.done <- cacheResult{"", err}
+		close(lookup.done)
+		return
 	}
 
-	c.Lock()
-	c.backing[key] = &Page{
+	c.backing[lookup.key] = &Page{
 		LinkID:    link.ID,
 		LinkURL:   link.URL,
 		NewVisits: 1,
-		lruMarker: c.lruList.PushBack(key),
+		lruMarker: c.lruList.PushBack(lookup.key),
 	}
-	c.Unlock()
-
-	return link.URL, nil
+	lookup.done <- cacheResult{link.URL, nil}
+	close(lookup.done)
 }
 
 func (c *Cache) syncAllPages() {
-	c.RLock()
 	for _, page := range c.backing {
-		if page.isDirty() {
-			page.Lock()
-			c.cohereFn(page)
-			page.Unlock()
-		}
+		c.coherer(page)
 	}
-	c.RUnlock()
 }
 
 func (c *Cache) evictOldPages() {
-	c.Lock()
-	removeCount := c.lruList.Len() - int(c.capacity)
-	for range removeCount {
+	excess := c.lruList.Len() - int(c.capacity)
+	for range excess {
 		el := c.lruList.Back()
 		key := el.Value.(string)
 		page := c.backing[key]
-		c.cohereFn(page)
+		c.coherer(page)
 		delete(c.backing, key)
 		c.lruList.Remove(el)
 	}
-	c.Unlock()
 }
 
 func (c *Cache) Close() {

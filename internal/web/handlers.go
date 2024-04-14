@@ -58,9 +58,21 @@ func (h *Handler) OpenShortLink(globalCtx context.Context) gin.HandlerFunc {
 	cache := NewCacheContext(
 		globalCtx,
 		h.Conf.Server.CacheCapacity,
+		func(ctx context.Context, key string) (*db.Link, error) {
+			decodedID := h.Codec.Decode(key)
+			if decodedID <= 0 {
+				return nil, fmt.Errorf("failed to decode")
+			}
+
+			link, err := h.Store.RetrieveLink(ctx, uint(decodedID))
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve")
+			}
+
+			return link, nil
+		},
 		func(page *Page) {
-			err := h.Store.IncrementVisits(context.Background(), page.LinkID, page.NewVisits)
-			if err == nil {
+			if err := h.Store.IncrementVisits(globalCtx, page.LinkID, page.NewVisits); err == nil {
 				page.NewVisits = 0
 			}
 		},
@@ -73,19 +85,7 @@ func (h *Handler) OpenShortLink(globalCtx context.Context) gin.HandlerFunc {
 			return
 		}
 
-		url, err := cache.Resolve(
-			encodedID,
-			func(key string) (*db.Link, error) {
-				decodedID := h.Codec.Decode(encodedID)
-				if decodedID <= 0 {
-					return nil, fmt.Errorf("bad link")
-				}
-				return h.Store.RetrieveLink(c, uint(decodedID))
-			},
-			func(page *Page) {
-				page.NewVisits += 1
-			},
-		)
+		url, err := cache.Lookup(c, encodedID)
 		if err != nil {
 			c.String(http.StatusNotFound, "Link not found")
 			return
