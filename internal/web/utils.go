@@ -49,3 +49,17 @@ func CheckURLValidity(rawURL string) bool {
 func IsBadLinkID(encodedID string) bool {
 	return slices.Contains(badLinkIDs, encodedID)
 }
+
+func LinearMapping(input, inputStart, inputEnd, outputStart, outputEnd int) int {
+	if input < inputStart {
+		return outputStart
+	}
+	if input > inputEnd {
+		return outputEnd
+	}
+	inputRange := float64(inputEnd) - float64(inputStart)
+	outputRange := float64(outputEnd) - float64(outputStart)
+	slope := outputRange / inputRange
+	intercept := float64(outputStart) - slope
+	return int(slope*float64(input) + intercept)
+}

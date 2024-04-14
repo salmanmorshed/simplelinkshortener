@@ -9,10 +9,7 @@ import (
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-var (
-	CacheWaitGroup    sync.WaitGroup
-	CoherenceInterval = 10 * time.Second
-)
+var CacheWaitGroup sync.WaitGroup
 
 type ResolveFunc func(context.Context, string) (*db.Link, error)
 type CohereFunc func(*Page)
@@ -58,7 +55,8 @@ func NewCacheContext(ctx context.Context, capacity uint, resolver ResolveFunc, c
 		evictCh:  make(chan struct{}, capacity),
 	}
 
-	coherenceTicker := time.NewTicker(CoherenceInterval)
+	intervalSeconds := LinearMapping(int(capacity), 1, 1000, 60, 300)
+	coherenceTicker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
 	CacheWaitGroup.Add(1)
 
 	go func() {
