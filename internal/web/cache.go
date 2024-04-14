@@ -58,10 +58,8 @@ func NewCacheContext(ctx context.Context, capacity uint, resolver ResolveFunc, c
 		evictCh:  make(chan struct{}, capacity),
 	}
 
-	CacheWaitGroup.Add(1)
-
 	coherenceTicker := time.NewTicker(CoherenceInterval)
-	defer coherenceTicker.Stop()
+	CacheWaitGroup.Add(1)
 
 	go func() {
 		for {
@@ -76,6 +74,7 @@ func NewCacheContext(ctx context.Context, capacity uint, resolver ResolveFunc, c
 				c.evictOldPages()
 
 			case <-ctx.Done():
+				coherenceTicker.Stop()
 				c.syncAllPages()
 				CacheWaitGroup.Done()
 				return
