@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
@@ -79,22 +78,4 @@ func NewStore(conf *cfg.Config) (Store, error) {
 	}
 
 	return nil, fmt.Errorf("unsupported database type '%s'", conf.Database.Type)
-}
-
-func NewStoreContext(ctx context.Context, conf *cfg.Config) (Store, error) {
-	store, err := NewStore(conf)
-	if err != nil {
-		return nil, err
-	}
-
-	if wg, ok := ctx.Value("ExitWG").(*sync.WaitGroup); ok {
-		wg.Add(1)
-		go func() {
-			<-ctx.Done()
-			store.Close()
-			wg.Done()
-		}()
-	}
-
-	return store, nil
 }

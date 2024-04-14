@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	SyncInterval    = 10 * time.Second
-	CleanupInterval = 30 * time.Second
+	CacheWaitGroup    sync.WaitGroup
+	CoherenceInterval = 10 * time.Second
 )
 
 type ResolveFunc func(context.Context, string) (*db.Link, error)
@@ -33,6 +33,7 @@ type Cache struct {
 	lruList *list.List
 
 	lookupCh chan cacheLookup
+	evictCh  chan struct{}
 }
 
 type cacheLookup struct {
@@ -46,7 +47,7 @@ type cacheResult struct {
 	err error
 }
 
-func NewCache(capacity uint, resolver ResolveFunc, coherer CohereFunc) *Cache {
+func NewCacheContext(ctx context.Context, capacity uint, resolver ResolveFunc, coherer CohereFunc) *Cache {
 	c := Cache{
 		capacity: capacity,
 		resolver: resolver,
@@ -54,10 +55,13 @@ func NewCache(capacity uint, resolver ResolveFunc, coherer CohereFunc) *Cache {
 		backing:  make(map[string]*Page),
 		lruList:  list.New(),
 		lookupCh: make(chan cacheLookup),
+		evictCh:  make(chan struct{}, capacity),
 	}
 
-	coherenceTicker := time.NewTicker(SyncInterval)
-	evictionTicker := time.NewTicker(CleanupInterval)
+	CacheWaitGroup.Add(1)
+
+	coherenceTicker := time.NewTicker(CoherenceInterval)
+	defer coherenceTicker.Stop()
 
 	go func() {
 		for {
@@ -68,28 +72,18 @@ func NewCache(capacity uint, resolver ResolveFunc, coherer CohereFunc) *Cache {
 			case <-coherenceTicker.C:
 				c.syncAllPages()
 
-			case <-evictionTicker.C:
+			case <-c.evictCh:
 				c.evictOldPages()
+
+			case <-ctx.Done():
+				c.syncAllPages()
+				CacheWaitGroup.Done()
+				return
 			}
 		}
 	}()
 
 	return &c
-}
-
-func NewCacheContext(ctx context.Context, capacity uint, resolver ResolveFunc, coherer CohereFunc) *Cache {
-	c := NewCache(capacity, resolver, coherer)
-
-	if wg, ok := ctx.Value("ExitWG").(*sync.WaitGroup); ok {
-		wg.Add(1)
-		go func() {
-			<-ctx.Done()
-			c.Close()
-			wg.Done()
-		}()
-	}
-
-	return c
 }
 
 func (c *Cache) Lookup(ctx context.Context, key string) (string, error) {
@@ -123,6 +117,7 @@ func (c *Cache) handleLookup(lookup cacheLookup) {
 	}
 	lookup.done <- cacheResult{link.URL, nil}
 	close(lookup.done)
+	c.evictCh <- struct{}{}
 }
 
 func (c *Cache) syncAllPages() {

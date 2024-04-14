@@ -3,9 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
-
 	"github.com/salmanmorshed/intstrcodec"
-
 	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 	"github.com/salmanmorshed/simplelinkshortener/internal/web"
@@ -17,7 +15,7 @@ func StartServer(ctx context.Context, cfgPath string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	store, err := db.NewStoreContext(ctx, conf)
+	store, err := db.NewStore(conf)
 	if err != nil {
 		return fmt.Errorf("failed to initialize store: %w", err)
 	}
@@ -29,18 +27,24 @@ func StartServer(ctx context.Context, cfgPath string) error {
 
 	router := web.SetupRouter(ctx, conf, store, codec)
 
-	if conf.Server.UseTLS {
-		err = router.RunTLS(
-			fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port),
-			conf.Server.TLSCertificate,
-			conf.Server.TLSPrivateKey,
-		)
-	} else {
-		err = router.Run(fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port))
-	}
-	if err != nil {
-		return fmt.Errorf("failed to start server: %w", err)
-	}
+	errCh := make(chan error)
+	go func() {
+		if conf.Server.UseTLS {
+			errCh <- router.RunTLS(
+				fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port),
+				conf.Server.TLSCertificate,
+				conf.Server.TLSPrivateKey,
+			)
+		} else {
+			errCh <- router.Run(fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port))
+		}
+	}()
+	go func() {
+		<-ctx.Done()
+		web.CacheWaitGroup.Wait()
+		store.Close()
+		errCh <- nil
+	}()
 
-	return nil
+	return <-errCh
 }

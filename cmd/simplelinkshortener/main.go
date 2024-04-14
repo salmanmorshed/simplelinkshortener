@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/urfave/cli/v2"
@@ -80,20 +79,14 @@ func main() {
 		},
 	}
 
-	var wg sync.WaitGroup
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "ExitWG", &wg)
-	ctx, cancel := context.WithCancel(ctx)
-
 	sigintCh := make(chan os.Signal, 1)
-	signal.Notify(sigintCh, syscall.SIGINT)
+	signal.Notify(sigintCh, syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
 		<-sigintCh
 		cancel()
-		fmt.Printf("\nWarm shutdown. Please wait...\n")
-		wg.Wait()
-		os.Exit(0)
+		fmt.Printf("\nWarm shutdown. Please wait.\n")
 	}()
 
 	err := app.RunContext(ctx, os.Args)
