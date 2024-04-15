@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"os"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-func SetupRouter(globalCtx context.Context, conf *cfg.Config, store db.Store, codec *intstrcodec.Codec) *gin.Engine {
+func SetupRouter(globalCtx context.Context, conf *cfg.Config, store db.Store, codec *intstrcodec.Codec) func() error {
 	var static fs.FS
 	if strings.HasPrefix(cfg.Version, "v") {
 		static = efs
@@ -49,5 +50,14 @@ func SetupRouter(globalCtx context.Context, conf *cfg.Config, store db.Store, co
 	apiAdmin.PATCH("/users/:username", handler.UserDetailsOrEdit())
 	apiAdmin.DELETE("/users/:username", handler.UserDelete())
 
-	return router
+	return func() error {
+		if !conf.Server.UseTLS {
+			return router.Run(fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port))
+		}
+		return router.RunTLS(
+			fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port),
+			conf.Server.TLSCertificate,
+			conf.Server.TLSPrivateKey,
+		)
+	}
 }

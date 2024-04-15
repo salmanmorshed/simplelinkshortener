@@ -85,7 +85,7 @@ func (h *Handler) OpenShortLink(globalCtx context.Context) gin.HandlerFunc {
 			return
 		}
 
-		url, err := cache.Lookup(c, encodedID)
+		url, err := cache.Lookup(c.Request.Context(), encodedID)
 		if err != nil {
 			c.String(http.StatusNotFound, "Link not found")
 			return

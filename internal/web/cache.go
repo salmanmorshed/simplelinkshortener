@@ -57,8 +57,8 @@ func NewCacheContext(ctx context.Context, capacity uint, resolver ResolveFunc, c
 
 	intervalSeconds := LinearMapping(int(capacity), 1, 1000, 60, 300)
 	coherenceTicker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
-	CacheWaitGroup.Add(1)
 
+	CacheWaitGroup.Add(1)
 	go func() {
 		for {
 			select {
