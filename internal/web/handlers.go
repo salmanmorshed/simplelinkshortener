@@ -96,6 +96,12 @@ func (h *Handler) OpenShortLink(globalCtx context.Context) gin.HandlerFunc {
 
 }
 
+func (h *Handler) APIVersion() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"version": cfg.Version})
+	}
+}
+
 func (h *Handler) LinkList() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.MustGet("user").(*db.User)

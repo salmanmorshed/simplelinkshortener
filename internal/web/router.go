@@ -37,7 +37,8 @@ func SetupRouter(globalCtx context.Context, conf *cfg.Config, store db.Store, co
 	router.GET("/:id", handler.OpenShortLink(globalCtx))
 	router.GET("/web", authed, ServeStaticFile(static, "static/index.html"))
 
-	api := router.Group("/api", APIVersionMiddleware(), authed)
+	router.GET("/api", handler.APIVersion())
+	api := router.Group("/api", authed)
 	api.GET("/links", handler.LinkList())
 	api.POST("/links", handler.LinkCreate())
 	api.GET("/links/:id", handler.LinkDetails())
