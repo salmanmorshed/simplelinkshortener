@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>simplelinkshortener</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font:
+                15px system-ui,
+                sans-serif;
+            color: #222;
+            background: #f7f7f8;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+            border: 0;
+            border-radius: 6px;
+            padding: 10px 16px;
+            background: #222;
+            color: white;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #777;
+        }
+
+        a {
+            color: #245dcc;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .muted {
+            color: #888;
+        }
+
+        .error {
+            color: #c0392b;
+        }
+
+        .success {
+            color: #21864b;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .login {
+            max-width: 380px;
+            margin: 12vh auto;
+            padding: 30px;
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 10px;
+        }
+
+        h1 {
+            font-size: 23px;
+            margin: 0 0 8px;
+        }
+
+        h2 {
+            font-size: 17px;
+            margin: 0 0 18px;
+        }
+
+        .field {
+            margin: 16px 0;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .full {
+            width: 100%;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .header button {
+            background: transparent;
+            color: #666;
+            padding: 8px;
+        }
+
+        .panel {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 9px;
+            padding: 22px;
+            margin-bottom: 20px;
+        }
+
+        .create-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .create-form input {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .links {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .links th,
+        .links td {
+            padding: 14px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .links th {
+            color: #888;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .links td {
+            font-size: 14px;
+        }
+
+        .links .original {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .copy {
+            background: transparent;
+            color: #555;
+            padding: 5px 8px;
+            font-size: 13px;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 18px;
+        }
+
+        .message {
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .empty {
+            padding: 40px 10px;
+            text-align: center;
+            color: #888;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 24px 14px;
+            }
+
+            .panel {
+                padding: 16px;
+            }
+
+            .links th,
+            .links td {
+                padding: 12px 6px;
+            }
+
+            .links .original {
+                max-width: 130px;
+            }
+
+            .hide-mobile {
+                display: none;
+            }
+
+            .create-form {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main id="app"></main>
+
+
+    <script type="module">
+        function el(name, ...opts) {
+            const element = document.createElement(name);
+
+            let props, children;
+            if (opts.length === 2) {
+                props = opts[0];
+                children = Array.isArray(opts[1]) ? opts[1] : [opts[1]];
+            } else if (opts.length === 1) {
+                const opt = opts[0];
+                if (Array.isArray(opt) || opt instanceof Node) {
+                    children = Array.isArray(opt) ? opt : [opt];
+                } else if (typeof opt === "string") {
+                    children = [document.createTextNode(opt)];
+                } else {
+                    props = opt;
+                }
+            }
+
+            if (props) {
+                for (const [key, value] of Object.entries(props)) {
+                    if (value == null) continue;
+                    if (["disabled", "hidden", "required", "selected", "multiple", "readonly"].includes(key)) {
+                        element.toggleAttribute(key, value);
+                    } else if (["checked", "value"].includes(key)) {
+                        element[key] = value;
+                    } else {
+                        element.setAttribute(key, value);
+                    }
+                }
+            }
+
+            if (children) element.append(...children);
+
+            return element;
+        }
+
+        const API = '/api/links';
+        const LIMIT = 10;
+
+        const state = {
+            credentials: {},
+            authed: false,
+            links: [],
+            total: 0,
+            offset: 0,
+            prefix: '',
+            loading: false,
+            error: '',
+            notice: '',
+        };
+
+        function getBasicAuthHeader({ username, password }) {
+            if (!username || !password) return "";
+            const bytes = new TextEncoder().encode(`${username}:${password}`);
+            const value = bytes.reduce((acc, cur) => acc + String.fromCharCode(cur), "");
+            return `Basic ${btoa(value)}`;
+        }
+
+        async function authedRequest(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    ...options.headers,
+                    Authorization: getBasicAuthHeader(state.credentials),
+                },
+            });
+            if (!response.ok) {
+                let message = `Request failed (${response.status})`;
+                try {
+                    const data = await response.json();
+                    message = data.detail || data.message || message;
+                } catch { }
+                throw new Error(message);
+            }
+            return response.json();
+        }
+
+        function LoginView(state) {
+            return el('section', { class: 'login' }, [
+                el('form', { 'data-action': 'login' }, [
+                    el('h1', 'simplelinkshortener'),
+                    el('p', { class: 'muted' }, 'Login to manage your links.'),
+
+                    el('div', { class: 'field' }, [
+                        el('label', 'Username'),
+                        el('input', {
+                            name: 'username',
+                            autocomplete: 'username',
+                            required: true,
+                        }),
+                    ]),
+
+                    el('div', { class: 'field' }, [
+                        el('label', 'Password'),
+                        el('input', {
+                            name: 'password',
+                            type: 'password',
+                            autocomplete: 'current-password',
+                            required: true,
+                        }),
+                    ]),
+
+                    el('button', {
+                        type: 'submit',
+                        class: 'full',
+                        disabled: state.loading,
+                    }, state.loading ? 'Logging in...' : 'Login'),
+
+                    el('p', { class: 'message error' }, state.error),
+                ]),
+            ]);
+        }
+
+        function LinkRow(link, prefix) {
+            const shortUrl = `${prefix.replace(/\/$/, '')}/${encodeURIComponent(link.id)}`;
+
+            return el('tr', [
+                el('td', [
+                    el('a', {
+                        href: shortUrl,
+                        target: '_blank',
+                        rel: 'noopener noreferrer',
+                    }, shortUrl),
+                ]),
+
+                el('td', { class: 'original hide-mobile' }, [
+                    el('a', {
+                        href: link.url,
+                        target: '_blank',
+                        rel: 'noopener noreferrer',
+                    }, link.url),
+                ]),
+
+                el('td', String(link.visits)),
+
+                el('td', { class: 'hide-mobile' }, new Date(link.created_at).toLocaleDateString()),
+
+                el('td', [
+                    el('button', {
+                        type: 'button',
+                        class: 'copy',
+                        'data-action': 'copy-link',
+                        'data-url': shortUrl,
+                    }, 'Copy'),
+                ]),
+            ]);
+        }
+
+        function LinkListView(state) {
+            const page = Math.floor(state.offset / LIMIT) + 1;
+            const pages = Math.ceil(state.total / LIMIT);
+
+            return el('section', { class: 'panel' }, [
+                el('h2', 'Your links'),
+
+                state.links.length
+                    ? el('table', { class: 'links' }, [
+                        el('thead', [
+                            el('tr', [
+                                el('th', 'Short link'),
+                                el('th', { class: 'hide-mobile' }, 'Destination'),
+                                el('th', 'Visits'),
+                                el('th', { class: 'hide-mobile' }, 'Created'),
+                                el('th'),
+                            ]),
+                        ]),
+
+                        el('tbody', state.links.map(link => LinkRow(link, state.prefix))),
+                    ])
+                    : el('div', { class: 'empty' }, state.loading ? 'Loading links...' : 'No links created yet.'),
+
+                el('div', { class: 'pagination' }, [
+                    el('span', { class: 'muted' },
+                        `${state.total} links · Page ${page} of ${Math.max(1, pages)}`
+                    ),
+
+                    el('div', { class: 'pagination-controls' }, [
+                        el('button', {
+                            type: 'button',
+                            'data-action': 'prev-page',
+                            disabled: state.offset === 0 || state.loading
+                        }, 'Prev'),
+                        " ",
+                        el('button', {
+                            type: 'button',
+                            'data-action': 'next-page',
+                            disabled: state.offset + LIMIT >= state.total || state.loading,
+                        }, 'Next'),
+                    ]),
+                ]),
+            ]);
+        }
+
+        function DashboardView(state) {
+            return el('div', { class: 'container' }, [
+                el('header', { class: 'header' }, [
+                    el('h1', 'Shortlink'),
+                    el('button', {
+                        type: 'button',
+                        class: 'secondary',
+                        'data-action': 'logout',
+                    }, 'Logout'),
+                ]),
+
+                el('section', { class: 'panel' }, [
+                    el('h2', 'Create a short link'),
+
+                    el('form', {
+                        class: 'create-form',
+                        'data-action': 'create-link',
+                    }, [
+                        el('input', {
+                            type: 'url',
+                            name: 'url',
+                            placeholder: 'https://example.com',
+                            required: true,
+                        }),
+
+                        el('button', {
+                            type: 'submit',
+                            disabled: state.loading,
+                        }, state.loading ? 'Creating...' : 'Create link'),
+                    ]),
+
+                    el('p', {
+                        class: `message ${state.error ? 'error' : 'success'}`,
+                    }, state.error || state.notice),
+                ]),
+
+                LinkListView(state),
+            ]);
+        }
+
+        function AppView(state) {
+            return state.authed
+                ? DashboardView(state)
+                : LoginView(state);
+        }
+
+        const app = document.querySelector('#app');
+
+        function render() {
+            app.replaceChildren(AppView(state));
+        }
+
+        async function loadLinks() {
+            const params = new URLSearchParams({
+                limit: LIMIT,
+                offset: state.offset,
+            });
+
+            const data = await authedRequest(`${API}?${params}`);
+
+            state.links = data.results;
+            state.total = data.total;
+            state.prefix = data.prefix;
+
+            if (state.offset >= state.total && state.offset > 0) {
+                state.offset = Math.max(0, Math.floor((state.total - 1) / LIMIT) * LIMIT);
+
+                return loadLinks();
+            }
+        }
+
+        async function login(form) {
+            state.credentials = {
+                username: form.elements.username.value,
+                password: form.elements.password.value,
+            };
+
+            state.loading = true;
+            state.error = '';
+            render();
+
+            try {
+                await loadLinks();
+                state.loading = false;
+                state.authed = true;
+            } catch (error) {
+                state.credentials = null;
+                state.authed = false;
+                state.loading = false;
+                state.error = error.message;
+            }
+
+            render();
+        }
+
+        async function createLink(form) {
+            const url = form.elements.url.value;
+
+            state.loading = true;
+            state.error = '';
+            state.notice = '';
+            render();
+
+            try {
+                const result = await authedRequest(API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url }),
+                });
+
+                state.notice = `Created: ${result.short_url}`;
+
+                await loadLinks();
+            } catch (error) {
+                state.error = error.message;
+            } finally {
+                state.loading = false;
+                render();
+            }
+        }
+
+        async function copyLink(button) {
+            try {
+                await navigator.clipboard.writeText(button.dataset.url);
+                button.textContent = 'Copied';
+            } catch {
+                button.textContent = 'Failed';
+            }
+        }
+
+        async function changePage(offset) {
+            const previousOffset = state.offset;
+            state.offset = Math.max(0, offset);
+            state.error = '';
+
+            render();
+
+            try {
+                await loadLinks();
+            } catch (error) {
+                state.offset = previousOffset;
+                state.error = error.message;
+            }
+
+            render();
+        }
+
+        function logout() {
+            state.credentials = null;
+            state.authed = false;
+            state.links = [];
+            state.total = 0;
+            state.offset = 0;
+            state.prefix = '';
+            state.error = '';
+            state.notice = '';
+
+            render();
+        }
+
+        app.addEventListener('submit', e => {
+            const form = e.target.closest('form[data-action]');
+            if (!form) return;
+            e.preventDefault();
+
+            if (form.dataset.action === "login") login(form);
+            if (form.dataset.action === "create-link") createLink(form);
+        });
+
+        app.addEventListener('click', async e => {
+            const button = e.target.closest('button[data-action]');
+            if (!button) return;
+            e.preventDefault();
+
+            if (button.dataset.action === "logout") logout();
+            if (button.dataset.action === "copy-link") copyLink(button);
+            if (button.dataset.action === "prev-page") changePage(state.offset - LIMIT);
+            if (button.dataset.action === "next-page") changePage(state.offset + LIMIT);
+        });
+
+        render();
+    </script>
+
+</body>
+
+</html>

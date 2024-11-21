@@ -18,7 +18,7 @@ func main() {
 	app := &cli.App{
 		Usage:     "Create a personal link shortening service",
 		ArgsUsage: " ",
-		Version:   cfg.Version,
+		Version:   cfg.GetVersion(),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "config",

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -96,9 +97,18 @@ func (h *Handler) OpenShortLink(globalCtx context.Context) gin.HandlerFunc {
 
 }
 
+//go:embed index.html
+var index_html []byte
+
+func (h *Handler) Frontend() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html", index_html)
+	}
+}
+
 func (h *Handler) APIVersion() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"version": cfg.Version})
+		c.JSON(http.StatusOK, gin.H{"version": cfg.GetVersion()})
 	}
 }
 

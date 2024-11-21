@@ -3,9 +3,6 @@ package web
 import (
 	"context"
 	"fmt"
-	"io/fs"
-	"os"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/salmanmorshed/intstrcodec"
@@ -15,14 +12,6 @@ import (
 )
 
 func SetupRouter(globalCtx context.Context, conf *cfg.Config, store db.Store, codec *intstrcodec.Codec) func() error {
-	var static fs.FS
-	if strings.HasPrefix(cfg.Version, "v") {
-		static = efs
-		gin.SetMode(gin.ReleaseMode)
-	} else {
-		static = os.DirFS("internal/web")
-	}
-
 	handler := Handler{conf, store, codec}
 
 	router := gin.Default()
@@ -35,7 +24,7 @@ func SetupRouter(globalCtx context.Context, conf *cfg.Config, store db.Store, co
 
 	router.GET("/", handler.OpenHomePage())
 	router.GET("/:id", handler.OpenShortLink(globalCtx))
-	router.GET("/web", authed, ServeStaticFile(static, "static/index.html"))
+	router.GET("/web", handler.Frontend())
 
 	router.GET("/api", handler.APIVersion())
 	api := router.Group("/api", authed)

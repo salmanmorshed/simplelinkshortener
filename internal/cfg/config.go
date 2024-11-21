@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 
 	"gopkg.in/yaml.v3"
 )
-
-var Version = "devel"
 
 type Config struct {
 	URLPrefix    string `yaml:"url_prefix,omitempty"`
@@ -93,4 +92,12 @@ func WriteConfigToFile(configPath string, conf *Config) error {
 	}
 
 	return nil
+}
+
+func GetVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+	return info.Main.Version
 }
