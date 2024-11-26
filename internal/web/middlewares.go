@@ -1,67 +1,84 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"slices"
 
-	"github.com/gin-gonic/gin"
-
-	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-func CORSMiddleware(conf *cfg.Config) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		if origin != "" && slices.Contains(conf.Server.CORSOrigins, origin) {
-			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Access-Control-Allow-Credentials", "true")
-			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Accept-Encoding, Content-Type, Content-Length")
-			c.Header("Access-Control-Expose-Headers", "WWW-Authenticate, Content-Type, Content-Length, X-API-Version")
+type Middleware func(http.HandlerFunc) http.HandlerFunc
 
-			if c.Request.Method == "OPTIONS" {
-				c.AbortWithStatus(http.StatusNoContent)
+func chainMiddleware(mws ...Middleware) Middleware {
+	return func(h http.HandlerFunc) http.HandlerFunc {
+		for _, mw := range slices.Backward(mws) {
+			h = mw(h)
+		}
+		return h
+	}
+}
+
+func CORSMiddleware(allowedOrigins []string) Middleware {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			w.Header().Set("Vary", "Origin")
+			if origin != "" && slices.Contains(allowedOrigins, origin) {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Content-Length")
+				w.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate, Content-Type, Content-Length")
+
+				if r.Method == "OPTIONS" {
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+			}
+
+			next(w, r)
+		}
+	}
+}
+
+type ctxUserKey struct{}
+
+func BasicAuthMiddleware(store db.Store) Middleware {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			username, password, hasAuth := r.BasicAuth()
+
+			if !hasAuth {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				writeJSON(w, http.StatusUnauthorized, JD{"error": "missing authentication credentials"})
 				return
 			}
-		}
 
-		c.Next()
+			user, err := store.RetrieveUser(r.Context(), username)
+			if err != nil || !db.VerifyPassword(user.Password, password) {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				writeJSON(w, http.StatusUnauthorized, JD{"error": "incorrect username and/or password"})
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), ctxUserKey{}, user)
+			next(w, r.WithContext(ctx))
+		}
 	}
 }
 
-func BasicAuthMiddleware(store db.Store) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		username, password, hasAuth := c.Request.BasicAuth()
+func AdminFilterMiddleware() Middleware {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			user, ok := r.Context().Value(ctxUserKey{}).(*db.User)
 
-		if !hasAuth {
-			c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing authentication credentials"})
-			return
+			if !ok || !user.IsAdmin {
+				writeJSON(w, http.StatusForbidden, JD{"error": "user is not admin"})
+				return
+			}
+
+			next(w, r)
 		}
-
-		user, err := store.RetrieveUser(c, username)
-		if err != nil || !db.VerifyPassword(user.Password, password) {
-			c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "incorrect username and/or password"})
-			return
-		}
-
-		c.Set("user", user)
-
-		c.Next()
-	}
-}
-
-func AdminFilterMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		user, ok := c.MustGet("user").(*db.User)
-
-		if !ok || !user.IsAdmin {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "user is not admin"})
-			return
-		}
-
-		c.Next()
 	}
 }

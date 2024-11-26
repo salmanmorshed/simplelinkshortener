@@ -3,51 +3,44 @@ package web
 import (
 	"context"
 	"fmt"
+	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/salmanmorshed/intstrcodec"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
 	"github.com/salmanmorshed/simplelinkshortener/internal/db"
 )
 
-func SetupRouter(globalCtx context.Context, conf *cfg.Config, store db.Store, codec *intstrcodec.Codec) func() error {
+func SetupRouter(rootCtx context.Context, conf *cfg.Config, store db.Store, codec *intstrcodec.Codec) func() error {
 	handler := Handler{conf, store, codec}
 
-	router := gin.Default()
+	apiCommon := chainMiddleware(CORSMiddleware(conf.Server.CORSOrigins))
+	authedOnly := chainMiddleware(apiCommon, BasicAuthMiddleware(store))
+	adminOnly := chainMiddleware(authedOnly, AdminFilterMiddleware())
 
-	if conf.Server.UseCORS {
-		router.Use(CORSMiddleware(conf))
-	}
+	mux := http.NewServeMux()
 
-	authed := BasicAuthMiddleware(store)
+	mux.HandleFunc("GET /{$}", handler.OpenHomePage())
+	mux.HandleFunc("GET /{id}", handler.OpenShortLink())
 
-	router.GET("/", handler.OpenHomePage())
-	router.GET("/:id", handler.OpenShortLink(globalCtx))
-	router.GET("/web", handler.Frontend())
+	mux.HandleFunc("GET /api", apiCommon(handler.APIVersion()))
+	mux.HandleFunc("GET /api/links", authedOnly(handler.LinkList()))
+	mux.HandleFunc("POST /api/links", authedOnly(handler.LinkCreate()))
+	mux.HandleFunc("GET /api/links/{id}", authedOnly(handler.LinkDetails()))
+	mux.HandleFunc("DELETE /api/links/{id}", authedOnly(handler.LinkDelete()))
 
-	router.GET("/api", handler.APIVersion())
-	api := router.Group("/api", authed)
-	api.GET("/links", handler.LinkList())
-	api.POST("/links", handler.LinkCreate())
-	api.GET("/links/:id", handler.LinkDetails())
-	api.DELETE("/links/:id", handler.LinkDelete())
-
-	apiAdmin := api.Group("", AdminFilterMiddleware())
-	apiAdmin.GET("/users", handler.UserList())
-	apiAdmin.POST("/users", handler.UserCreate())
-	apiAdmin.GET("/users/:username", handler.UserDetailsOrEdit())
-	apiAdmin.PATCH("/users/:username", handler.UserDetailsOrEdit())
-	apiAdmin.DELETE("/users/:username", handler.UserDelete())
+	mux.HandleFunc("GET /api/users", adminOnly(handler.UserList()))
+	mux.HandleFunc("POST /api/users", adminOnly(handler.UserCreate()))
+	mux.HandleFunc("GET /api/users/{username}", adminOnly(handler.UserDetailsOrEdit()))
+	mux.HandleFunc("PATCH /api/users/{username}", adminOnly(handler.UserDetailsOrEdit()))
+	mux.HandleFunc("DELETE /api/users/{username}", adminOnly(handler.UserDelete()))
 
 	return func() error {
+		address := fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port)
+		fmt.Println("Serving server at:", address)
 		if !conf.Server.UseTLS {
-			return router.Run(fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port))
+			return http.ListenAndServe(address, mux)
 		}
-		return router.RunTLS(
-			fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port),
-			conf.Server.TLSCertificate,
-			conf.Server.TLSPrivateKey,
-		)
+		return http.ListenAndServeTLS(address, conf.Server.TLSCertificate, conf.Server.TLSPrivateKey, mux)
 	}
 }

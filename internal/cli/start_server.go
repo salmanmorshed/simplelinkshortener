@@ -34,7 +34,7 @@ func StartServer(ctx context.Context, cfgPath string) error {
 	go func() { errCh <- serve() }()
 	go func() {
 		<-ctx.Done()
-		web.CacheWaitGroup.Wait()
+		// TODO: wait for cache flush
 		errCh <- nil
 	}()
 

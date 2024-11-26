@@ -228,7 +228,6 @@
 <body>
     <main id="app"></main>
 
-
     <script type="module">
         function el(name, ...opts) {
             const element = document.createElement(name);
@@ -300,7 +299,7 @@
                 let message = `Request failed (${response.status})`;
                 try {
                     const data = await response.json();
-                    message = data.detail || data.message || message;
+                    message = data.error || message;
                 } catch { }
                 throw new Error(message);
             }
@@ -557,7 +556,7 @@
             const previousOffset = state.offset;
             state.offset = Math.max(0, offset);
             state.error = '';
-
+            state.loading = true;
             render();
 
             try {
@@ -565,9 +564,10 @@
             } catch (error) {
                 state.offset = previousOffset;
                 state.error = error.message;
+            } finally {
+                state.loading = false;
+                render();
             }
-
-            render();
         }
 
         function logout() {

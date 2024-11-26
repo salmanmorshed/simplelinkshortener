@@ -1,13 +1,13 @@
 package web
 
 import (
-	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	"github.com/salmanmorshed/intstrcodec"
 
 	"github.com/salmanmorshed/simplelinkshortener/internal/cfg"
@@ -20,141 +20,139 @@ type Handler struct {
 	Codec *intstrcodec.Codec
 }
 
-func (h *Handler) OpenHomePage() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if h.Conf.HomeRedirect == "" {
-			c.String(http.StatusNotFound, "Page not found")
-			return
-		}
-
-		c.Redirect(http.StatusFound, h.Conf.HomeRedirect)
-	}
-}
-
-func (h *Handler) OpenShortLink(globalCtx context.Context) gin.HandlerFunc {
-	if !h.Conf.Server.UseCache {
-		return func(c *gin.Context) {
-			encodedID := c.Param("id")
-			if IsBadLinkID(encodedID) {
-				c.String(http.StatusNotFound, "Link not found")
-				return
-			}
-
-			decodedID := h.Codec.Decode(encodedID)
-			if decodedID <= 0 {
-				c.String(http.StatusNotFound, "Link not found")
-				return
-			}
-
-			link, err := h.Store.RetrieveLinkAndBumpVisits(c, uint(decodedID))
-			if err != nil {
-				c.String(http.StatusNotFound, "Link not found")
-				return
-			}
-
-			c.Redirect(http.StatusMovedPermanently, link.URL)
-		}
-	}
-
-	cache := NewCacheContext(
-		globalCtx,
-		h.Conf.Server.CacheCapacity,
-		func(ctx context.Context, key string) (*db.Link, error) {
-			decodedID := h.Codec.Decode(key)
-			if decodedID <= 0 {
-				return nil, fmt.Errorf("failed to decode")
-			}
-
-			link, err := h.Store.RetrieveLink(ctx, uint(decodedID))
-			if err != nil {
-				return nil, fmt.Errorf("failed to retrieve")
-			}
-
-			return link, nil
-		},
-		func(page *Page) {
-			if err := h.Store.IncrementVisits(globalCtx, page.LinkID, page.NewVisits); err == nil {
-				page.NewVisits = 0
-			}
-		},
-	)
-
-	return func(c *gin.Context) {
-		encodedID := c.Param("id")
-		if IsBadLinkID(encodedID) {
-			c.String(http.StatusNotFound, "Link not found")
-			return
-		}
-
-		url, err := cache.Lookup(c.Request.Context(), encodedID)
-		if err != nil {
-			c.String(http.StatusNotFound, "Link not found")
-			return
-		}
-
-		c.Redirect(http.StatusMovedPermanently, url)
-	}
-
-}
-
 //go:embed index.html
 var index_html []byte
 
-func (h *Handler) Frontend() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Data(http.StatusOK, "text/html", index_html)
+func (h *Handler) OpenHomePage() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if h.Conf.HomeRedirect == "" {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			w.Write(index_html)
+			return
+		}
+
+		http.Redirect(w, r, h.Conf.HomeRedirect, http.StatusFound)
 	}
 }
 
-func (h *Handler) APIVersion() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"version": cfg.GetVersion()})
-	}
-}
+func (h *Handler) OpenShortLink() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		encodedID := r.PathValue("id")
+		decodedID := h.Codec.Decode(encodedID)
+		if decodedID <= 0 {
+			http.NotFound(w, r)
+			return
+		}
 
-func (h *Handler) LinkList() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		user := c.MustGet("user").(*db.User)
-
-		totalLinkCount := h.Store.GetLinkCountForUser(c, user.Username)
-
-		limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+		link, err := h.Store.RetrieveLinkAndBumpVisits(r.Context(), uint(decodedID))
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid limit value"})
+			http.NotFound(w, r)
+			return
+		}
+
+		http.Redirect(w, r, link.URL, http.StatusFound)
+	}
+}
+
+type JD map[string]any
+
+func writeJSON(w http.ResponseWriter, status int, data JD) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		return fmt.Errorf("failed to write json: %w", err)
+	}
+	return nil
+}
+
+func (h *Handler) APIVersion() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, JD{"version": cfg.GetVersion()})
+	}
+}
+
+func defaultQuery(r *http.Request, key, defaultValue string) string {
+	if values, ok := r.URL.Query()[key]; ok && len(values) > 0 {
+		return values[0]
+	}
+	return defaultValue
+}
+
+func GetBaseURL(conf *cfg.Config) string {
+	if conf.URLPrefix != "" {
+		return conf.URLPrefix
+	}
+	scheme := "http"
+	portSuffix := ""
+	if conf.Server.UseTLS {
+		scheme = "https"
+		if conf.Server.Port != 443 {
+			portSuffix = fmt.Sprintf(":%d", conf.Server.Port)
+		}
+	} else {
+		if conf.Server.Port != 80 {
+			portSuffix = fmt.Sprintf(":%d", conf.Server.Port)
+		}
+	}
+	return fmt.Sprintf("%s://%s%s", scheme, conf.Server.Host, portSuffix)
+}
+
+func getAuthedUser(r *http.Request) *db.User {
+	if au, ok := r.Context().Value(ctxUserKey{}).(*db.User); ok {
+		return au
+	}
+	return nil
+}
+
+func (h *Handler) LinkList() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := getAuthedUser(r)
+		if user == nil {
+			writeJSON(w, http.StatusUnauthorized, JD{"error": "unauthorized"})
+			return
+		}
+
+		limit, err := strconv.Atoi(defaultQuery(r, "limit", "10"))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, JD{"error": "invalid limit value"})
 			return
 		}
 		if limit < 1 || limit > 100 {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "limit must be between 1 and 100"})
+			writeJSON(w, http.StatusBadRequest, JD{"error": "limit must be between 1 and 100"})
 			return
 		}
 
-		offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+		offset, err := strconv.Atoi(defaultQuery(r, "offset", "0"))
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid offset value"})
+			writeJSON(w, http.StatusBadRequest, JD{"error": "invalid offset value"})
 			return
 		}
+		totalLinkCount := h.Store.GetLinkCountForUser(r.Context(), user.Username)
 		if offset < 0 || uint(offset) > totalLinkCount {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "offset value out of bounds"})
+			writeJSON(w, http.StatusBadRequest, JD{"error": "offset value out of bounds"})
 			return
 		}
 
-		links, err := h.Store.RetrieveLinksForUser(c, user.Username, limit, offset)
+		links, err := h.Store.RetrieveLinksForUser(r.Context(), user.Username, limit, offset)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			writeJSON(w, http.StatusInternalServerError, JD{"error": "internal error"})
 			return
 		}
 
-		results := make([]gin.H, len(links))
+		results := make([]JD, len(links))
 		for i, link := range links {
-			results[i] = gin.H{
-				"id":         h.Codec.Encode(int(link.ID)),
+			encodedID := h.Codec.Encode(int(link.ID))
+			results[i] = JD{
+				"id":         encodedID,
 				"url":        link.URL,
+				"short_url":  fmt.Sprintf("%s/%s", GetBaseURL(h.Conf), encodedID),
 				"visits":     link.Visits,
 				"created_at": link.CreatedAt,
 			}
 		}
 
-		c.JSON(http.StatusOK, gin.H{
+		writeJSON(w, http.StatusOK, JD{
 			"results": results,
 			"total":   totalLinkCount,
 			"limit":   limit,
@@ -164,108 +162,127 @@ func (h *Handler) LinkList() gin.HandlerFunc {
 	}
 }
 
-func (h *Handler) LinkCreate() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		user := c.MustGet("user").(*db.User)
+func (h *Handler) LinkCreate() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := getAuthedUser(r)
+		if user == nil {
+			writeJSON(w, http.StatusUnauthorized, JD{"error": "unauthorized"})
+			return
+		}
 
 		var data struct {
 			URL string `json:"url"`
 		}
-		if err := c.ShouldBindJSON(&data); err != nil || data.URL == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "url is required"})
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<10)
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil || data.URL == "" {
+			writeJSON(w, http.StatusBadRequest, JD{"error": "url is required"})
 			return
 		}
 
-		if !CheckURLValidity(data.URL) {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "url is invalid"})
+		parsedURL, err := url.Parse(data.URL)
+		if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+			writeJSON(w, http.StatusBadRequest, JD{"error": "url is invalid"})
 			return
 		}
 
-		link, err := h.Store.CreateLink(c, data.URL, user.Username)
+		link, err := h.Store.CreateLink(r.Context(), data.URL, user.Username)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			writeJSON(w, http.StatusInternalServerError, JD{"error": "internal error"})
 			return
 		}
 
 		encodedID := h.Codec.Encode(int(link.ID))
-		if IsBadLinkID(encodedID) {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "please try again"})
+		if encodedID == "api" {
+			writeJSON(w, http.StatusInternalServerError, JD{"error": "please try again"})
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{
-			"short_url": fmt.Sprintf("%s/%s", GetBaseURL(h.Conf), encodedID),
-		})
+		writeJSON(w, http.StatusCreated, JD{"short_url": fmt.Sprintf("%s/%s", GetBaseURL(h.Conf), encodedID)})
 	}
 }
 
-func (h *Handler) LinkDetails() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		encodedID := c.Param("id")
+func (h *Handler) LinkDetails() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		encodedID := r.PathValue("id")
 		if encodedID == "" {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+			writeJSON(w, http.StatusNotFound, JD{"error": "not found"})
 			return
 		}
 
 		decodedID := h.Codec.Decode(encodedID)
 
-		link, err := h.Store.RetrieveLink(c, uint(decodedID))
+		link, err := h.Store.RetrieveLink(r.Context(), uint(decodedID))
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+			writeJSON(w, http.StatusNotFound, JD{"error": "not found"})
 			return
 		}
 
-		user := c.MustGet("user").(*db.User)
+		user := getAuthedUser(r)
+		if user == nil {
+			writeJSON(w, http.StatusUnauthorized, JD{"error": "unauthorized"})
+			return
+		}
 		if user.Username != link.CreatedBy {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "permission denied"})
+			writeJSON(w, http.StatusForbidden, JD{"error": "permission denied"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
+		writeJSON(w, http.StatusOK, JD{
 			"id":         encodedID,
 			"url":        link.URL,
+			"short_url":  fmt.Sprintf("%s/%s", GetBaseURL(h.Conf), encodedID),
 			"visits":     link.Visits,
 			"created_at": link.CreatedAt,
 		})
 	}
 }
 
-func (h *Handler) LinkDelete() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		encodedID := c.Param("id")
+func (h *Handler) LinkDelete() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		encodedID := r.PathValue("id")
 		if encodedID == "" {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+			writeJSON(w, http.StatusNotFound, JD{"error": "not found"})
 			return
 		}
 
 		decodedID := h.Codec.Decode(encodedID)
 
-		link, err := h.Store.RetrieveLink(c, uint(decodedID))
+		link, err := h.Store.RetrieveLink(r.Context(), uint(decodedID))
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+			writeJSON(w, http.StatusNotFound, JD{"error": "not found"})
 			return
 		}
 
-		if err := h.Store.DeleteLink(c, link.ID); err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		user := getAuthedUser(r)
+		if user == nil {
+			writeJSON(w, http.StatusUnauthorized, JD{"error": "unauthorized"})
+			return
+		}
+		if user.Username != link.CreatedBy {
+			writeJSON(w, http.StatusForbidden, JD{"error": "permission denied"})
 			return
 		}
 
-		c.AbortWithStatus(http.StatusNoContent)
+		if err := h.Store.DeleteLink(r.Context(), link.ID); err != nil {
+			writeJSON(w, http.StatusInternalServerError, JD{"error": "internal error"})
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
-func (h *Handler) UserList() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		users, err := h.Store.RetrieveAllUsers(c)
+func (h *Handler) UserList() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		users, err := h.Store.RetrieveAllUsers(r.Context())
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			writeJSON(w, http.StatusInternalServerError, JD{"error": "internal error"})
 			return
 		}
 
-		results := make([]gin.H, len(users))
+		results := make([]JD, len(users))
 		for i, user := range users {
-			results[i] = gin.H{
+			results[i] = JD{
 				"username":   user.Username,
 				"password":   "<secret>",
 				"is_admin":   user.IsAdmin,
@@ -273,38 +290,39 @@ func (h *Handler) UserList() gin.HandlerFunc {
 			}
 		}
 
-		c.JSON(http.StatusOK, gin.H{"results": results})
+		writeJSON(w, http.StatusOK, JD{"results": results})
 	}
 }
 
-func (h *Handler) UserCreate() gin.HandlerFunc {
-	return func(c *gin.Context) {
+func (h *Handler) UserCreate() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var data struct {
-			Username string `json:"username" binding:"required"`
-			Password string `json:"password" binding:"required"`
+			Username string `json:"username"`
+			Password string `json:"password"`
 		}
-		if err := c.BindJSON(&data); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing required fields"})
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<10)
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil || data.Username == "" || data.Password == "" {
+			writeJSON(w, http.StatusBadRequest, JD{"error": "missing required fields"})
 			return
 		}
 
-		if err := db.CheckUsernameValidity(data.Username); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if validityErr := db.CheckUsernameValidity(data.Username); validityErr != nil {
+			writeJSON(w, http.StatusBadRequest, JD{"error": validityErr.Error()})
 			return
 		}
 
-		if err := db.CheckPasswordStrengthValidity(data.Password); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if validityErr := db.CheckPasswordStrengthValidity(data.Password); validityErr != nil {
+			writeJSON(w, http.StatusBadRequest, JD{"error": validityErr.Error()})
 			return
 		}
 
-		user, err := h.Store.CreateUser(c, data.Username, data.Password)
+		user, err := h.Store.CreateUser(r.Context(), data.Username, data.Password)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			writeJSON(w, http.StatusInternalServerError, JD{"error": "internal error"})
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{
+		writeJSON(w, http.StatusCreated, JD{
 			"username":   user.Username,
 			"password":   "<secret>",
 			"is_admin":   user.IsAdmin,
@@ -313,52 +331,41 @@ func (h *Handler) UserCreate() gin.HandlerFunc {
 	}
 }
 
-func (h *Handler) UserDetailsOrEdit() gin.HandlerFunc {
-	return func(c *gin.Context) {
+func (h *Handler) UserDetailsOrEdit() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var data struct {
-			Username string `json:"username"`
 			Password string `json:"password"`
 		}
 
-		user, err := h.Store.RetrieveUser(c, c.Param("username"))
+		user, err := h.Store.RetrieveUser(r.Context(), r.PathValue("username"))
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			writeJSON(w, http.StatusNotFound, JD{"error": "user not found"})
 			return
 		}
 
-		if c.Request.Method == "GET" {
+		if r.Method == "GET" {
 			goto respondWithUserDetails
 		}
 
-		if err := c.BindJSON(&data); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<10)
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			writeJSON(w, http.StatusBadRequest, JD{"error": "internal error"})
 			return
 		}
 
-		if data.Username != "" {
-			if err := db.CheckUsernameValidity(data.Username); err != nil {
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			if err := h.Store.UpdateUsername(c, user.Username, data.Username); err != nil {
-				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-		}
-
 		if data.Password != "" {
-			if err := db.CheckPasswordStrengthValidity(data.Password); err != nil {
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			if validityErr := db.CheckPasswordStrengthValidity(data.Password); validityErr != nil {
+				writeJSON(w, http.StatusBadRequest, JD{"error": validityErr.Error()})
 				return
 			}
-			if err := h.Store.UpdatePassword(c, user.Username, data.Password); err != nil {
-				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			if err := h.Store.UpdatePassword(r.Context(), user.Username, data.Password); err != nil {
+				writeJSON(w, http.StatusInternalServerError, JD{"error": "internal error"})
 				return
 			}
 		}
 
 	respondWithUserDetails:
-		c.JSON(http.StatusOK, gin.H{
+		writeJSON(w, http.StatusOK, JD{
 			"username":   user.Username,
 			"password":   "<secret>",
 			"is_admin":   user.IsAdmin,
@@ -367,24 +374,24 @@ func (h *Handler) UserDetailsOrEdit() gin.HandlerFunc {
 	}
 }
 
-func (h *Handler) UserDelete() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		user, err := h.Store.RetrieveUser(c, c.Param("username"))
+func (h *Handler) UserDelete() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := h.Store.RetrieveUser(r.Context(), r.PathValue("username"))
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			writeJSON(w, http.StatusNotFound, JD{"error": "user not found"})
 			return
 		}
 
 		if user.IsAdmin {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "target user is admin"})
+			writeJSON(w, http.StatusForbidden, JD{"error": "target user is admin"})
 			return
 		}
 
-		if err := h.Store.DeleteUser(c, user.Username); err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if err := h.Store.DeleteUser(r.Context(), user.Username); err != nil {
+			writeJSON(w, http.StatusInternalServerError, JD{"error": "internal error"})
 			return
 		}
 
-		c.AbortWithStatus(http.StatusNoContent)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
