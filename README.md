@@ -22,7 +22,7 @@ This command will guide you through the initial setup and generate a config file
 The server will begin listening to web traffic. Users with valid credentials can access the service to create and access short links.
 
 ## User Management
-Access to the API and the web UI is restricted by HTTP Basic Authentication. You must create user accounts before using the shortener. To add a new user, use the `useradd` command. Check the help menu for more details: 
+Access to the API and the web UI is restricted by HTTP Basic Authentication. You must create user accounts before using the shortener. To add a new user, use the `useradd` command. Check the help menu for more details:
 ```bash
 ~/go/bin/simplelinkshortener --help
 ```
@@ -62,7 +62,7 @@ Content-Type: application/json
 - **URL**: `/api/links`
 - **Method**: GET
 - **Authentication**: Basic Authentication
-- **Query Parameters**: 
+- **Query Parameters**:
   - `limit` (integer) default = 10
   - `offset` (integer) default = 0
 - **Response**: List of user's short links with pagination details.
@@ -92,9 +92,6 @@ Content-Type: application/json
   "prefix": "https://short.dev"
 }
 ```
-
-## Web frontend
-A work-in-progress frontend app is served on `/web`. You can use it to create or view your links.
 
 
 ## License

@@ -172,8 +172,6 @@ func InitializeConfigFile(cfgPath string) error {
 		}
 	}
 
-	conf.HomeRedirect = "/web"
-
 	conf.Codec.Alphabet = cfg.CreateRandomAlphabet()
 	conf.Codec.BlockSize = 20
 
